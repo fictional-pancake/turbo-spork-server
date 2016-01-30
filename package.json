@@ -1,0 +1,9 @@
+{
+  "name": "turbo-spork-server",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "ws": "^1.0.1"
+  }
+}
