@@ -7,10 +7,26 @@ var webserve = http.createServer(function(req, res) {
 	res.end();
 }).listen(process.env.PORT || 5000);
 
+var handleMessage = function(user, message) {
+	console.log(user+": "+message);
+};
+
+var logins = {};
+
 var sockserve = new ws.Server({server: webserve});
 sockserve.on('connection', function(conn) {
-	console.log(conn);
-	conn.on('message', function(message) {
+	var func = function(message) {
 		console.log(message);
-	});
+		var s = message.split(":");
+		if(s.length == 2 && s[0] == "auth") {
+			logins[s[1]] = {conn: conn};
+			conn.removeListener("message", func);
+			conn.on("message", handleMessage.bind(conn, s[1]));
+		}
+		else {
+			conn.send("Invalid auth message.");
+			conn.close();
+		}
+	};
+	conn.on('message', func);
 });
