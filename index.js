@@ -1,5 +1,20 @@
 var ws = require('ws');
 var http = require('http');
+var pg = require('pg');
+
+if(!process.env.DATABASE_URL) {
+	console.log("DATABASE_URL missing.  Please correct this.");
+	process.exit();
+}
+
+var db = new pg.Client(process.env.DATABASE_URL);
+db.connect(function(err) {
+	if(err) {
+		console.log("Error connecting to database");
+		console.log(err);
+		process.exit();
+	}
+});
 
 var webserve = http.createServer(function(req, res) {
 	res.writeHead(200, {"Content-type": "text/plain"});

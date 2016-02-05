@@ -4,6 +4,7 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "pg": "^4.4.4",
     "ws": "^1.0.1"
   }
 }
