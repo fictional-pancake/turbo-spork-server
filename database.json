@@ -1,0 +1,6 @@
+{
+  "dev": {
+    "driver": "pg",
+    "url": {"ENV": "DATABASE_URL"}
+  }
+}
