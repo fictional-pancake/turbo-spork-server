@@ -1,6 +1,7 @@
 var ws = require('ws');
 var http = require('http');
 var pg = require('pg');
+var bcrypt = require('bcrypt-nodejs');
 
 if(!process.env.DATABASE_URL) {
 	console.log("DATABASE_URL missing.  Please correct this.");
@@ -16,7 +17,17 @@ db.connect(function(err) {
 	}
 });
 
+var password = {
+	hash: function(password, callback) {
+		bcrypt.hash(password, null, null, callback);
+	},
+	verify: function(password, hash, callback) {
+		bcrypt.compare(password, hash, callback);
+	}
+};
+
 var webserve = http.createServer(function(req, res) {
+	console.log(req.url);
 	res.writeHead(200, {"Content-type": "text/plain"});
 	res.write("Future home of Turbo-Spork!");
 	res.end();

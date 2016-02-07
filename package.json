@@ -4,6 +4,7 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "bcrypt-nodejs": "0.0.3",
     "db-migrate": "^0.10.0-beta.11",
     "db-migrate-pg": "^0.1.9",
     "pg": "^4.4.4",
