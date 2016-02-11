@@ -28,8 +28,17 @@ var password = {
 
 var webserve = http.createServer(function(req, res) {
 	console.log(req.url);
-	res.writeHead(200, {"Content-type": "text/plain"});
-	res.write("Future home of Turbo-Spork!");
+	if (req.url == "/") {
+		res.writeHead(200, {"Content-type": "text/plain"});
+		res.write("Future home of Turbo-Spork!");
+	} else if (req.url == "/signup") {
+		res.writeHead(200, {"Content-type": "text/html"});
+		res.write("<!DOCTYPE html><html><head><title>Sign up</title></head><body>");
+		res.write("</body></html>");
+	} else {
+		res.writeHead(200, {"Content-type": "text/plain"});
+		res.write("404 rekt");
+	}
 	res.end();
 }).listen(process.env.PORT || 5000);
 
