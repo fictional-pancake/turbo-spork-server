@@ -33,11 +33,55 @@ var webserve = http.createServer(function(req, res) {
 	res.end();
 }).listen(process.env.PORT || 5000);
 
-var handleMessage = function(user, message) {
-	console.log(user+": "+message);
+var logins = {};
+var games = {};
+
+var messages = {
+	auth: {
+		data: true,
+		handler: function(conn, d) {
+			conn.send("error:You're already authenticated");
+		}
+	},
+	join: {
+		data: true,
+		handler: function(conn, d) {
+			var gd;
+			if(d.data in games) {
+				var gd = games[d.data];
+				for(var i = 0; i < gd.users.length; i++) {
+					var id = gd.users[i];
+					var cconn = logins[id].conn;
+					var cname = logins[id].name;
+					cconn.send("join:"+logins[d.user].name);
+				}
+			}
+			else {
+				gd = {users: []};
+				games[d.data] = gd;
+			}
+			gd.users.push(d.user);
+			for(var i = 0; i < gd.users.length; i++) {
+				var id = gd.users[i];
+				conn.send("join:"+logins[id].name);
+			}
+		}
+	}
 };
 
-var logins = {};
+var handleMessage = function(user, message) {
+	console.log(user+": "+message);
+	var cmd, data;
+	var ind = cmd.indexOf(":");
+	if(ind > -1) {
+		cmd = message.substring(0, ind);
+		data = message.substring(ind+1);
+	}
+	else {
+		cmd = message;
+	}
+	
+};
 
 var sockserve = new ws.Server({server: webserve});
 sockserve.on('connection', function(conn) {
@@ -45,12 +89,17 @@ sockserve.on('connection', function(conn) {
 		console.log(message);
 		var s = message.split(":");
 		if(s.length == 2 && s[0] == "auth") {
-			logins[s[1]] = {conn: conn};
+			var id = s[1];
+			if(id in logins) {
+				logins[id].conn.send("error:You logged in from another location");
+				logins[id].conn.close();
+			}
+			logins[id] = {conn: conn};
 			conn.removeListener("message", func);
-			conn.on("message", handleMessage.bind(conn, s[1]));
+			conn.on("message", handleMessage.bind(conn, id));
 		}
 		else {
-			conn.send("Invalid auth message.");
+			conn.send("error:Invalid auth message");
 			conn.close();
 		}
 	};
