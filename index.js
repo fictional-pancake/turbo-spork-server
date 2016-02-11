@@ -36,7 +36,7 @@ var webserve = http.createServer(function(req, res) {
 var logins = {};
 var games = {};
 
-var messages = {
+var commands = {
 	auth: {
 		data: true,
 		handler: function(conn, d) {
@@ -71,8 +71,10 @@ var messages = {
 
 var handleMessage = function(user, message) {
 	console.log(user+": "+message);
-	var cmd, data;
-	var ind = cmd.indexOf(":");
+	var conn = logins[user].conn;
+	var cmd;
+	var data = null;
+	var ind = message.indexOf(":");
 	if(ind > -1) {
 		cmd = message.substring(0, ind);
 		data = message.substring(ind+1);
@@ -80,7 +82,24 @@ var handleMessage = function(user, message) {
 	else {
 		cmd = message;
 	}
-	
+	var info = commands[cmd];
+	if(info) {
+		if(info.data === true && data === null) {
+			conn.send("error:That command requires additional data");
+		}
+		else if(info.data === false && data !== null) {
+			conn.send("error:That command doesn't require data");
+		}
+		else {
+			info.handler(conn, {
+				data: data,
+				user: user
+			});
+		}
+	}
+	else {
+		conn.send("error:Invalid command");
+	}
 };
 
 var sockserve = new ws.Server({server: webserve});
