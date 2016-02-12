@@ -33,6 +33,19 @@ var webserve = http.createServer(function(req, res) {
 	res.end();
 }).listen(process.env.PORT || 5000);
 
+var removeUserFromGames = function(user) {
+	for(var id in games) {
+		var ind = games[id].users.indexOf(user);
+		if(ind > -1) {
+			games[id].users.splice(ind,1);
+			for(var i = 0; i < games[id].users.length; i++) {
+				var cconn = logins[games[id].users[i]].conn;
+				cconn.send("leave:"+logins[user].name);
+			}
+		}
+	}
+};
+
 var logins = {};
 var games = {};
 
@@ -47,16 +60,7 @@ var commands = {
 		data: true,
 		handler: function(conn, d) {
 			var gd;
-			for(var id in games) {
-				var ind = games[id].users.indexOf(d.user);
-				if(ind > -1) {
-					games[id].users.splice(ind,1);
-					for(var i = 0; i < games[id].users.length; i++) {
-						var cconn = logins[games[id].users[i]].conn;
-						cconn.send("leave:"+logins[d.user].name);
-					}
-				}
-			}
+			removeUserFromGames(d.user);
 			if(d.data in games) {
 				var gd = games[d.data];
 				if("data" in gd) {
@@ -116,6 +120,11 @@ var handleMessage = function(user, message) {
 	}
 };
 
+var handleLostConnection = function(user) {
+	removeUserFromGames(user);
+	delete logins[user];
+};
+
 var sockserve = new ws.Server({server: webserve});
 sockserve.on('connection', function(conn) {
 	var func = function(message) {
@@ -130,6 +139,7 @@ sockserve.on('connection', function(conn) {
 			logins[id] = {conn: conn, name: id};
 			conn.removeListener("message", func);
 			conn.on("message", handleMessage.bind(conn, id));
+			conn.on("close", handleLostConnection.bind(conn, id));
 		}
 		else {
 			conn.send("error:Invalid auth message");
