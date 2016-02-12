@@ -47,8 +47,22 @@ var commands = {
 		data: true,
 		handler: function(conn, d) {
 			var gd;
+			for(var id in games) {
+				var ind = games[id].users.indexOf(d.user);
+				if(ind > -1) {
+					games[id].users.splice(ind,1);
+					for(var i = 0; i < games[id].users.length; i++) {
+						var cconn = logins[games[id].users[i]].conn;
+						cconn.send("leave:"+logins[d.user].name);
+					}
+				}
+			}
 			if(d.data in games) {
 				var gd = games[d.data];
+				if("data" in gd) {
+					conn.send("error:Game already started.");
+					return;
+				}
 				for(var i = 0; i < gd.users.length; i++) {
 					var id = gd.users[i];
 					var cconn = logins[id].conn;
@@ -113,7 +127,7 @@ sockserve.on('connection', function(conn) {
 				logins[id].conn.send("error:You logged in from another location");
 				logins[id].conn.close();
 			}
-			logins[id] = {conn: conn};
+			logins[id] = {conn: conn, name: id};
 			conn.removeListener("message", func);
 			conn.on("message", handleMessage.bind(conn, id));
 		}
