@@ -46,6 +46,74 @@ var removeUserFromGames = function(user) {
 	}
 };
 
+var GAMERULES = {
+	NODES_PER_USER_AT_START: 3,
+	UNCLAIMED_NODES_AT_START: 1,
+	MIN_DISTANCE_BETWEEN_NODES: 8,
+	FIELD_SIZE: 100,
+	ATTEMPTS_TO_PLACE_NODES: 5
+};
+
+var createNode = function(defaults, nodes) {
+	var tr = {d: 0};
+	for(var i = 0; i < GAMERULES.ATTEMPTS_TO_PLACE_NODES; i++) {
+		var tc = {};
+		if("x" in defaults) {
+			tc.x = defaults.x;
+		}
+		else {
+			tc.x = Math.floor(Math.random()*(GAMERULES.FIELD_SIZE-GAMERULES.MIN_DISTANCE_BETWEEN_NODES*2))+GAMERULES.MIN_DISTANCE_BETWEEN_NODES;
+		}
+		if("y" in defaults) {
+			tc.y = defaults.y;
+		}
+		else {
+			tc.y = Math.floor(Math.random()*(GAMERULES.FIELD_SIZE-GAMERULES.MIN_DISTANCE_BETWEEN_NODES*2))+GAMERULES.MIN_DISTANCE_BETWEEN_NODES;
+		}
+		if("owner" in defaults) {
+			tc.owner = defaults.owner;
+		}
+		else {
+			tc.owner = -1;
+		}
+		if(nodes && nodes.length > 0) {
+			for(var x = 0; x < nodes.length; x++) {
+				var cn = nodes[x];
+				var dsq = Math.pow(cn.x-tc.x,2)+Math.pow(cn.y-tc.y,2);
+				if(dsq >= Math.pow(GAMERULES.MIN_DISTANCE_BETWEEN_NODES, 2)) {
+					return tc;
+				}
+				if(dsq > tr.d) {
+					tr = {tr: tc, d: dsq};
+				}
+			}
+		}
+		else {
+			return tc;
+		}
+	}
+	return tr.tr;
+};
+
+var startGame = function(name) {
+	var nodes = [];
+	for(var i = 0; i < games[name].users.length; i++) {
+		for(var x = 0; x < GAMERULES.NODES_PER_USER_AT_START; x++) {
+			nodes.push(createNode({
+				owner: i,
+			}, nodes));
+		}
+	}
+	for(var x = 0; x < GAMERULES.UNCLAIMED_NODES_AT_START; x++) {
+		nodes.push(createNode({}, nodes));
+	}
+	games[name].data = {nodes: nodes};
+	for(var i = 0; i < games[name].users.length; i++) {
+		var cconn = logins[games[name].users[i]].conn;
+		cconn.send("gamestart:"+JSON.stringify(games[name].data));
+	}
+};
+
 var logins = {};
 var games = {};
 
@@ -83,6 +151,26 @@ var commands = {
 				var id = gd.users[i];
 				conn.send("join:"+logins[id].name);
 			}
+		}
+	},
+	gamestart: {
+		data: false,
+		handler: function(conn, d) {
+			for(var id in games) {
+				var gd = games[id];
+				var ind = gd.users.indexOf(d.user);
+				if(ind>-1) {
+					if(ind == 0) {
+						startGame(id);
+						return;
+					}
+					else {
+						conn.send("error:You aren't the game leader.");
+						return;
+					}
+				}
+			}
+			conn.send("error:You aren't in a room.");
 		}
 	}
 };
