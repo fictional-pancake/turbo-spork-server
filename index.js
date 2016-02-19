@@ -255,16 +255,37 @@ sockserve.on('connection', function(conn) {
 	var func = function(message) {
 		console.log(message);
 		var s = message.split(":");
-		if(s.length == 2 && s[0] == "auth") {
-			var id = s[1];
-			if(id in logins) {
-				logins[id].conn.send("error:You logged in from another location");
-				logins[id].conn.close();
-			}
-			logins[id] = {conn: conn, name: id};
-			conn.removeListener("message", func);
-			conn.on("message", handleMessage.bind(conn, id));
-			conn.on("close", handleLostConnection.bind(conn, id));
+		if(s.length == 3 && s[0] == "auth") {
+			db.query("SELECT * FROM users WHERE name=$1", [s[1]], function(err, result) {
+				if(err) {
+					console.error("QUERY IS SCRUBLORD", err);
+					conn.send("error:query is scrublord");
+					conn.close();
+				}
+				else if(result.rows.length == 1) {
+					password.verify(s[2], result.rows[0].passhash, function(x, data) {
+						if(data) {
+							var id = result.rows[0].id;
+							console.log(s[1]+" ("+id+") logged in!");
+							if(id in logins) {
+								logins[id].conn.send("error:You logged in from another location");
+								logins[id].conn.close();
+							}
+							logins[id] = {conn: conn, name: id};
+							conn.removeListener("message", func);
+							conn.on("message", handleMessage.bind(conn, id));
+							conn.on("close", handleLostConnection.bind(conn, id));
+						}
+						else {
+							conn.send("error:Incorrect password");
+							conn.close();
+						}
+					});
+				}
+				else {
+					conn.send("error:Incorrect login");
+				}
+			});
 		}
 		else {
 			conn.send("error:Invalid auth message");
