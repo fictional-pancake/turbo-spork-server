@@ -34,7 +34,35 @@ var webserve = http.createServer(function(req, res) {
 	} else if (req.url == "/signup") {
 		res.writeHead(200, {"Content-type": "text/html"});
 		res.write("<!DOCTYPE html><html><head><title>Sign up</title></head><body>");
+		res.write("<form method=\"POST\" action=\"signupaction\">Username: <input type\"text\" name=\"username\"/><br>");
+		res.write("Password: <input type=\"password\" name=\"password\"/><br>");
+		res.write("<input type=\"submit\" value=\"Submit\"/></form>");
 		res.write("</body></html>");
+	} else if (req.url == "/signupaction") {
+		var POST = {};
+		if (req.method == 'POST') {
+			req.on('data', function(data) {
+				data = data.toString();
+				data = data.split('&');
+				for (var i = 0; i < data.length; i++) {
+					var _data = data[i].split("=");
+					POST[_data[0]] = _data[1];
+				}
+				console.log(POST);
+				db.query("SELECT EXISTS(SELECT 1 FROM users WHERE name=$1)",  ['post.username'], function(err, result) {
+					if (err) {
+						console.error("query is scrublord and didn't work", err);
+					}
+					else if (result.rows[0].exists) {
+						console.log(result);
+						console.log("User already exists");
+					}
+					else {
+						console.log("User does not already exist");
+					}
+				});
+			});
+		}
 	} else {
 		res.writeHead(200, {"Content-type": "text/plain"});
 		res.write("404 rekt");
