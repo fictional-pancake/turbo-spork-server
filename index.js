@@ -49,18 +49,20 @@ var webserve = http.createServer(function(req, res) {
 					POST[_data[0]] = _data[1];
 				}
 				console.log(POST);
-				db.query("SELECT EXISTS(SELECT 1 FROM users WHERE name=$1)",  ['post.username'], function(err, result) {
-					if (err) {
-						console.error("query is scrublord and didn't work", err);
-					}
-					else if (result.rows[0].exists) {
-						console.log(result);
-						console.log("User already exists");
-					}
-					else {
-						console.log("User does not already exist");
-					}
-				});
+				if (POST.username.indexOf(":") == -1 && POST.password.indexOf(":") == -1) {
+					db.query("SELECT EXISTS(SELECT 1 FROM users WHERE name=$1)",  [POST.username], function(err, result) {
+						if (err) {
+							console.error("query is scrublord and didn't work", err);
+						}
+						else if (result.rows[0].exists) {
+							console.log(result);
+							console.log("User already exists");
+						}
+						else {
+							console.log("User does not already exist");
+						}
+					});
+				}
 			});
 		}
 	} else {
