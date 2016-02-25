@@ -66,7 +66,7 @@ var webserve = http.createServer(function(req, res) {
 			});
 		}
 	} else {
-		res.writeHead(200, {"Content-type": "text/plain"});
+		res.writeHead(404, {"Content-type": "text/plain"});
 		res.write("404 rekt");
 	}
 	res.end();
