@@ -267,7 +267,7 @@ sockserve.on('connection', function(conn) {
 				else if(result.rows.length == 1) {
 					password.verify(s[2], result.rows[0].passhash, function(x, data) {
 						if(data) {
-							var id = result.rows[0].id;
+							var id = s[1];
 							console.log(s[1]+" ("+id+") logged in!");
 							if(id in logins) {
 								logins[id].conn.send("error:You logged in from another location");
