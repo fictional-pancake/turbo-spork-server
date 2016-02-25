@@ -60,7 +60,7 @@ var webserve = http.createServer(function(req, res) {
 						}
 						else {
 							console.log("User does not already exist");
-							password.hash(POST.password, function(hash) {
+							password.hash(POST.password, function(err, hash) {
 								db.query("INSERT INTO users (name, passhash) VALUES ($1, $2)", [POST.username, hash], function(err, result) {
 									if (err) {
 										console.error("query is scrublord and didn't work", err);
