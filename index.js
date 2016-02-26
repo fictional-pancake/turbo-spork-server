@@ -26,8 +26,7 @@ var password = {
 	}
 };
 
-var webserve = http.createServer(function(req, res) {
-	console.log(req.url);
+var handleWeb = function(req, res, POST) {
 	if (req.url == "/") {
 		res.writeHead(200, {"Content-type": "text/plain"});
 		res.write("Future home of Turbo-Spork!");
@@ -39,37 +38,25 @@ var webserve = http.createServer(function(req, res) {
 		res.write("<input type=\"submit\" value=\"Submit\"/></form>");
 		res.write("</body></html>");
 	} else if (req.url == "/signupaction") {
-		var POST = {};
-		if (req.method == 'POST') {
-			req.on('data', function(data) {
-				data = data.toString();
-				data = data.split('&');
-				for (var i = 0; i < data.length; i++) {
-					var _data = data[i].split("=");
-					POST[_data[0]] = _data[1];
+		if (POST.username.indexOf(":") == -1 && POST.password.indexOf(":") == -1) {
+			db.query("SELECT EXISTS(SELECT 1 FROM users WHERE name=$1)",  [POST.username], function(err, result) {
+				if (err) {
+					console.error("query is scrublord and didn't work", err);
 				}
-				console.log(POST);
-				if (POST.username.indexOf(":") == -1 && POST.password.indexOf(":") == -1) {
-					db.query("SELECT EXISTS(SELECT 1 FROM users WHERE name=$1)",  [POST.username], function(err, result) {
-						if (err) {
-							console.error("query is scrublord and didn't work", err);
-						}
-						else if (result.rows[0].exists) {
-							console.log(result);
-							console.log("User already exists");
-						}
-						else {
-							console.log("User does not already exist");
-							password.hash(POST.password, function(err, hash) {
-								db.query("INSERT INTO users (name, passhash) VALUES ($1, $2)", [POST.username, hash], function(err, result) {
-									if (err) {
-										console.error("query is scrublord and didn't work", err);
-									} else {
-										console.log("Created new user with username " + POST.username);
-									}
-								});
-							});
-						}
+				else if (result.rows[0].exists) {
+					console.log(result);
+					console.log("User already exists");
+				}
+				else {
+					console.log("User does not already exist");
+					password.hash(POST.password, function(err, hash) {
+						db.query("INSERT INTO users (name, passhash) VALUES ($1, $2)", [POST.username, hash], function(err, result) {
+							if (err) {
+								console.error("query is scrublord and didn't work", err);
+							} else {
+								console.log("Created new user with username " + POST.username);
+							}
+						});
 					});
 				}
 			});
@@ -79,6 +66,29 @@ var webserve = http.createServer(function(req, res) {
 		res.write("404 rekt");
 	}
 	res.end();
+};
+
+var webserve = http.createServer(function(req, res) {
+	var POST = {};
+	var hwr = handleWeb.bind(this, req, res, POST);
+	console.log(req.url);
+	if (req.method == 'POST') {
+		console.log("it's POST");
+		req.on('data', function(data) {
+			console.log("DATA");
+			data = data.toString();
+			data = data.split('&');
+			for (var i = 0; i < data.length; i++) {
+				var _data = data[i].split("=");
+				POST[_data[0]] = _data[1];
+			}
+			console.log(POST);
+		});
+		req.on('end', hwr);
+	}
+	else {
+		hwr();
+	}
 }).listen(process.env.PORT || 5000);
 
 var removeUserFromGames = function(user) {
