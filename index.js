@@ -42,10 +42,12 @@ var handleWeb = function(req, res, POST) {
 			db.query("SELECT EXISTS(SELECT 1 FROM users WHERE name=$1)",  [POST.username], function(err, result) {
 				if (err) {
 					console.error("query is scrublord and didn't work", err);
+					res.write("query is scrublord");
 				}
 				else if (result.rows[0].exists) {
 					console.log(result);
 					console.log("User already exists");
+					res.write("User already exists noob");
 				}
 				else {
 					console.log("User does not already exist");
@@ -53,8 +55,10 @@ var handleWeb = function(req, res, POST) {
 						db.query("INSERT INTO users (name, passhash) VALUES ($1, $2)", [POST.username, hash], function(err, result) {
 							if (err) {
 								console.error("query is scrublord and didn't work", err);
+								res.write("query is scrublord");
 							} else {
 								console.log("Created new user with username " + POST.username);
+								res.write("Created new user with username " + POST.username);
 							}
 						});
 					});
