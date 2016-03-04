@@ -278,9 +278,12 @@ var handleLostConnection = function(user) {
 var sockserve = new ws.Server({server: webserve});
 sockserve.on('connection', function(conn) {
 	var func = function(message) {
+		// this is called the first time the server receives a message
+		// it should be an auth message
 		console.log(message);
 		var s = message.split(":");
 		if(s.length == 3 && s[0] == "auth") {
+			// yes, it is
 			db.query("SELECT * FROM users WHERE name=$1", [s[1]], function(err, result) {
 				if(err) {
 					console.error("QUERY IS SCRUBLORD", err);
@@ -289,7 +292,7 @@ sockserve.on('connection', function(conn) {
 				}
 				else if(result.rows.length == 1) {
 					password.verify(s[2], result.rows[0].passhash, function(x, data) {
-						if(data) {
+						if(!x && data) {
 							var id = s[1];
 							console.log(s[1]+" ("+id+") logged in!");
 							if(id in logins) {
@@ -297,6 +300,7 @@ sockserve.on('connection', function(conn) {
 								logins[id].conn.close();
 							}
 							logins[id] = {conn: conn, name: id};
+							conn.send("join:"+s[1]);
 							conn.removeListener("message", func);
 							conn.on("message", handleMessage.bind(conn, id));
 							conn.on("close", handleLostConnection.bind(conn, id));
