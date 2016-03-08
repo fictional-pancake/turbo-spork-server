@@ -127,7 +127,19 @@ var applyDefault = function(shown, def) {
 
 var applyDefaultToMap = function(target, source, name, def) {
 	target[name] = applyDefault(source[name], def);
-}
+};
+
+var distance = function() {
+	if(arguments.length == 2) {
+		return distance(arguments[0].x, arguments[0].y, arguments[1].x, arguments[1].y);
+	}
+	else if(arguments.length == 4) {
+		return Math.sqrt(Math.pow(arguments[1]-arguments[3], 2)+Math.pow(arguments[0]-arguments[2], 2));
+	}
+	else {
+		return NaN;
+	}
+};
 
 var createNode = function(defaults, nodes) {
 	var tr = {d: 0};
@@ -138,6 +150,7 @@ var createNode = function(defaults, nodes) {
 		applyDefaultToMap(tc, defaults, "owner", -1);
 		applyDefaultToMap(tc, defaults, "generationTime", 1000);
 		applyDefaultToMap(tc, defaults, "unitCap", 100);
+		applyDefaultToMap(tc, defaults, "unitSpeed", .01);
 		if(nodes && nodes.length > 0) {
 			for(var x = 0; x < nodes.length; x++) {
 				var cn = nodes[x];
@@ -233,6 +246,53 @@ var commands = {
 				}
 			}
 			conn.send("error:You aren't in a room.");
+		}
+	},
+	attack: {
+		data: true,
+		handler: function(conn, d) {
+			var s = d.data.split(",");
+			if(s.length == 2) {
+				var src = parseInt(s[0]);
+				var dst = parseInt(s[1]);
+				for(var id in games) {
+					var gd = games[id];
+					var ind = gd.users.indexOf(d.user);
+					if(ind>-1) {
+						if("data" in gd) {
+							if(src >= 0 && src < gd.data.nodes.length && dst >= 0 && dst < gd.data.nodes.length) {
+								if(ind == gd.data.nodes[src].owner) {
+									var group = {
+										source: src,
+										dest: dst,
+										start: new Date().getTime(),
+										duration: distance(gd.data.nodes[src], gd.data.nodes[dst])/gd.data.nodes[src].unitSpeed
+									};
+									conn.send("send:"+JSON.stringify(group));
+									if(!("unitgroups" in gd.data)) {
+										gd.data.unitgroups = [];
+									}
+									gd.data.unitgroups.push(group);
+								}
+								else {
+									conn.send("error:You don't own that node.");
+								}
+							}
+							else {
+								conn.send("error:That node doesn't exist.");
+							}
+						}
+						else {
+							conn.send("error:Game not started");
+						}
+						return;
+					}
+				}
+				conn.send("error:You aren't in a room.");
+			}
+			else {
+				conn.send("error:Invalid attack");
+			}
 		}
 	}
 };
