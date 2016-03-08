@@ -116,28 +116,28 @@ var GAMERULES = {
 	ATTEMPTS_TO_PLACE_NODES: 5
 };
 
+var applyDefault = function(shown, def) {
+	if(shown !== undefined) {
+		return shown;
+	}
+	else {
+		return def;
+	}
+};
+
+var applyDefaultToMap = function(target, source, name, def) {
+	target[name] = applyDefault(source[name], def);
+}
+
 var createNode = function(defaults, nodes) {
 	var tr = {d: 0};
 	for(var i = 0; i < GAMERULES.ATTEMPTS_TO_PLACE_NODES; i++) {
 		var tc = {};
-		if("x" in defaults) {
-			tc.x = defaults.x;
-		}
-		else {
-			tc.x = Math.floor(Math.random()*(GAMERULES.FIELD_SIZE-GAMERULES.MIN_DISTANCE_BETWEEN_NODES*2))+GAMERULES.MIN_DISTANCE_BETWEEN_NODES;
-		}
-		if("y" in defaults) {
-			tc.y = defaults.y;
-		}
-		else {
-			tc.y = Math.floor(Math.random()*(GAMERULES.FIELD_SIZE-GAMERULES.MIN_DISTANCE_BETWEEN_NODES*2))+GAMERULES.MIN_DISTANCE_BETWEEN_NODES;
-		}
-		if("owner" in defaults) {
-			tc.owner = defaults.owner;
-		}
-		else {
-			tc.owner = -1;
-		}
+		applyDefaultToMap(tc, defaults, "x", Math.floor(Math.random()*(GAMERULES.FIELD_SIZE-GAMERULES.MIN_DISTANCE_BETWEEN_NODES*2))+GAMERULES.MIN_DISTANCE_BETWEEN_NODES);
+		applyDefaultToMap(tc, defaults, "y", Math.floor(Math.random()*(GAMERULES.FIELD_SIZE-GAMERULES.MIN_DISTANCE_BETWEEN_NODES*2))+GAMERULES.MIN_DISTANCE_BETWEEN_NODES);
+		applyDefaultToMap(tc, defaults, "owner", -1);
+		applyDefaultToMap(tc, defaults, "generationTime", 1000);
+		applyDefaultToMap(tc, defaults, "unitCap", 100);
 		if(nodes && nodes.length > 0) {
 			for(var x = 0; x < nodes.length; x++) {
 				var cn = nodes[x];
@@ -269,6 +269,69 @@ var handleMessage = function(user, message) {
 		conn.send("error:Invalid command");
 	}
 };
+
+var lastTick = -1;
+
+var tick = function() {
+	var time = new Date().getTime();
+	for(var id in games) {
+		var gd = games[id];
+		if("data" in gd) {
+			if("unitgroups" in gd.data) {
+				var groups = gd.data.unitgroups;
+				for(var i = 0; i < groups.length; i++) {
+					var group = groups[i];
+					if(group.start+group.duration >= time) {
+						// reached destination
+						var node = gd.data.nodes[group.dest];
+						if(!(group.owner in node.units)) {
+							node.units[group.owner] = 0;
+						}
+						node.units[group.owner] += group.size;
+					}
+				}
+			}
+			for(var i = 0; i < gd.data.nodes.length; i++) {
+				var node = gd.data.nodes[i];
+				if(!("units" in node)) {
+					node.units = {};
+				}
+				if(node.owner != -1) {
+					if(!(node.owner in node.units)) {
+						node.units[node.owner] = 0;
+					}
+					// generate new units
+					node.units[node.owner] = Math.min(node.units[node.owner] + (time-lastTick)*node.generationTime, node.unitCap);
+				}
+				// ensure owner is correct
+				var rightfulOwner = -1;
+				for(var u in node.units) {
+					if(node.units > 0) {
+						if(rightfulOwner == -1) {
+							rightfulOwner = u;
+						}
+						else {
+							// multiple owner's units, node owner unknown
+							rightfulOwner = -1;
+						}
+					}
+				}
+				if(rightfulOwner != -1) {
+					if(node.owner != rightfulOwner) {
+						node.owner = rightfulOwner;
+						for(var j = 0; j < gd.users.length; j++) {
+							var cconn = logins[gd.users[j]].conn;
+							cconn.send("update:"+i+",owner,"+node.owner);
+						}
+					}
+				}
+			}
+		}
+	}
+	lastTick = time;
+};
+
+setInterval(tick, 0);
 
 var handleLostConnection = function(user) {
 	removeUserFromGames(user);
