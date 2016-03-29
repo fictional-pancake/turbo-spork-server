@@ -95,10 +95,13 @@ var webserve = http.createServer(function(req, res) {
 	}
 }).listen(process.env.PORT || 5000);
 
-var removeUserFromGames = function(user) {
+var removeUserFromGames = function(user, died) {
 	for(var id in games) {
 		var ind = games[id].users.indexOf(user);
 		if(ind > -1) {
+			if(!died) {
+				logins[user].conn.send("leave:"+logins[user].name);
+			}
 			games[id].users.splice(ind,1);
 			for(var i = 0; i < games[id].users.length; i++) {
 				var cconn = logins[games[id].users[i]].conn;
@@ -394,7 +397,7 @@ var tick = function() {
 setInterval(tick, 0);
 
 var handleLostConnection = function(user) {
-	removeUserFromGames(user);
+	removeUserFromGames(user, true);
 	delete logins[user];
 };
 
@@ -419,8 +422,10 @@ sockserve.on('connection', function(conn) {
 							var id = s[1];
 							console.log(s[1]+" ("+id+") logged in!");
 							if(id in logins) {
-								logins[id].conn.send("error:You logged in from another location");
-								logins[id].conn.close();
+								var tconn = logins[id].conn;
+								tconn.send("error:You logged in from another location");
+								handleLostConnection(id);
+								tconn.close();
 							}
 							logins[id] = {conn: conn, name: id};
 							conn.send("join:"+s[1]);
