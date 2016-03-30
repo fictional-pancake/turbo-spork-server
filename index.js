@@ -415,6 +415,7 @@ setInterval(tick, 0);
 
 var handleLostConnection = function(user) {
 	removeUserFromGames(user, true);
+	console.log(logins[user].name+" left");
 	delete logins[user];
 };
 
@@ -423,6 +424,7 @@ sockserve.on('connection', function(conn) {
 	var func = function(message) {
 		// this is called the first time the server receives a message
 		// it should be an auth message
+		conn.removeListener("message", func);
 		console.log(message);
 		var s = message.split(":");
 		if(s.length == 3 && s[0] == "auth") {
@@ -446,7 +448,6 @@ sockserve.on('connection', function(conn) {
 							}
 							logins[id] = {conn: conn, name: id};
 							conn.send("join:"+s[1]);
-							conn.removeListener("message", func);
 							conn.on("message", handleMessage.bind(conn, id));
 							conn.on("close", handleLostConnection.bind(conn, id));
 						}
@@ -457,7 +458,12 @@ sockserve.on('connection', function(conn) {
 					});
 				}
 				else {
-					conn.send("error:Incorrect login");
+					try {
+						conn.send("error:Incorrect login");
+						conn.close();
+					} catch(e) {
+						console.error(e);
+					}
 				}
 			});
 		}
