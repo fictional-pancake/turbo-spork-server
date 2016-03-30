@@ -30,6 +30,7 @@ var handleWeb = function(req, res, POST) {
 	if (req.url == "/") {
 		res.writeHead(200, {"Content-type": "text/plain"});
 		res.write("Future home of Turbo-Spork!");
+		res.end();
 	} else if (req.url == "/signup") {
 		res.writeHead(200, {"Content-type": "text/html"});
 		res.write("<!DOCTYPE html><html><head><title>Sign up</title></head><body>");
@@ -37,17 +38,20 @@ var handleWeb = function(req, res, POST) {
 		res.write("Password: <input type=\"password\" name=\"password\"/><br>");
 		res.write("<input type=\"submit\" value=\"Submit\"/></form>");
 		res.write("</body></html>");
+		res.end();
 	} else if (req.url == "/signupaction") {
 		if (POST.username.indexOf(":") == -1 && POST.password.indexOf(":") == -1) {
 			db.query("SELECT EXISTS(SELECT 1 FROM users WHERE name=$1)",  [POST.username], function(err, result) {
 				if (err) {
 					console.error("query is scrublord and didn't work", err);
 					res.write("query is scrublord");
+					res.end();
 				}
 				else if (result.rows[0].exists) {
 					console.log(result);
 					console.log("User already exists");
 					res.write("User already exists noob");
+					res.end();
 				}
 				else {
 					console.log("User does not already exist");
@@ -60,6 +64,7 @@ var handleWeb = function(req, res, POST) {
 								console.log("Created new user with username " + POST.username);
 								res.write("Created new user with username " + POST.username);
 							}
+							res.end();
 						});
 					});
 				}
@@ -68,8 +73,8 @@ var handleWeb = function(req, res, POST) {
 	} else {
 		res.writeHead(404, {"Content-type": "text/plain"});
 		res.write("404 rekt");
+		res.end();
 	}
-	res.end();
 };
 
 var webserve = http.createServer(function(req, res) {
