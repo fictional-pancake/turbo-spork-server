@@ -108,9 +108,16 @@ var removeUserFromGames = function(user, died) {
 				logins[user].conn.send("leave:"+logins[user].name);
 			}
 			games[id].users.splice(ind,1);
+			var win = games[id].users.length == 1 && ("data" in games[id]);
 			for(var i = 0; i < games[id].users.length; i++) {
 				var cconn = logins[games[id].users[i]].conn;
 				cconn.send("leave:"+logins[user].name);
+				if(win) {
+					cconn.send("win:"+logins[games[id].users[0]].name);
+				}
+			}
+			if(win) {
+				delete games[id].data;
 			}
 		}
 	}
@@ -244,7 +251,12 @@ var commands = {
 				var ind = gd.users.indexOf(d.user);
 				if(ind>-1) {
 					if(ind == 0) {
-						startGame(id);
+						if(gd.users.length > 1) {
+							startGame(id);
+						}
+						else {
+							conn.send("error:You need at least two players");
+						}
 						return;
 					}
 					else {
