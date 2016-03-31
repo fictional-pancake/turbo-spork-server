@@ -1,7 +1,8 @@
 {
   "name": "turbo-spork-server",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node test/test.js"
   },
   "dependencies": {
     "bcrypt-nodejs": "0.0.3",
@@ -9,5 +10,8 @@
     "db-migrate-pg": "^0.1.9",
     "pg": "^4.4.4",
     "ws": "^1.0.1"
+  },
+  "devDependencies": {
+    "async": "^2.0.0-rc.2"
   }
 }
