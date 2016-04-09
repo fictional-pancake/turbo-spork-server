@@ -100,6 +100,11 @@ var webserve = http.createServer(function(req, res) {
 	}
 }).listen(process.env.PORT || 5000);
 
+var handleWin = function(gd, owner) {
+	broadcast("win:"+logins[gd.users[owner]].name, gd);
+	delete gd.data;
+};
+
 var removeUserFromGames = function(user, died) {
 	for(var id in games) {
 		var ind = games[id].users.indexOf(user);
@@ -109,15 +114,9 @@ var removeUserFromGames = function(user, died) {
 			}
 			games[id].users.splice(ind,1);
 			var win = games[id].users.length == 1 && ("data" in games[id]);
-			for(var i = 0; i < games[id].users.length; i++) {
-				var cconn = logins[games[id].users[i]].conn;
-				cconn.send("leave:"+logins[user].name);
-				if(win) {
-					cconn.send("win:"+logins[games[id].users[0]].name);
-				}
-			}
+			broadcast("leave:"+logins[user].name, games[id]);
 			if(win) {
-				delete games[id].data;
+				handleWin(games[id], 0);
 			}
 		}
 	}
@@ -125,10 +124,11 @@ var removeUserFromGames = function(user, died) {
 
 var GAMERULES = {
 	NODES_PER_USER_AT_START: 3,
-	UNCLAIMED_NODES_AT_START: 1,
+	UNCLAIMED_NODES_AT_START: 5,
 	MIN_DISTANCE_BETWEEN_NODES: 8,
 	FIELD_SIZE: 100,
-	ATTEMPTS_TO_PLACE_NODES: 5
+	ATTEMPTS_TO_PLACE_NODES: 5,
+	CHANCE_TO_KILL: 0.0001
 };
 
 var applyDefault = function(shown, def) {
@@ -164,18 +164,22 @@ var createNode = function(defaults, nodes) {
 		applyDefaultToMap(tc, defaults, "y", Math.floor(Math.random()*(GAMERULES.FIELD_SIZE-GAMERULES.MIN_DISTANCE_BETWEEN_NODES*2))+GAMERULES.MIN_DISTANCE_BETWEEN_NODES);
 		applyDefaultToMap(tc, defaults, "owner", -1);
 		applyDefaultToMap(tc, defaults, "generationTime", 1000);
-		applyDefaultToMap(tc, defaults, "unitCap", 100);
+		applyDefaultToMap(tc, defaults, "unitCap", 50);
 		applyDefaultToMap(tc, defaults, "unitSpeed", .01);
 		if(nodes && nodes.length > 0) {
+			var mindsq = Infinity;
 			for(var x = 0; x < nodes.length; x++) {
 				var cn = nodes[x];
 				var dsq = Math.pow(cn.x-tc.x,2)+Math.pow(cn.y-tc.y,2);
-				if(dsq >= Math.pow(GAMERULES.MIN_DISTANCE_BETWEEN_NODES, 2)) {
-					return tc;
+				if(dsq < mindsq) {
+					mindsq = dsq;
 				}
-				if(dsq > tr.d) {
-					tr = {tr: tc, d: dsq};
-				}
+			}
+			if(mindsq >= Math.pow(GAMERULES.MIN_DISTANCE_BETWEEN_NODES, 2)) {
+				return tc;
+			}
+			if(mindsq > tr.d) {
+				tr = {tr: tc, d: mindsq};
 			}
 		}
 		else {
@@ -198,10 +202,7 @@ var startGame = function(name) {
 		nodes.push(createNode({}, nodes));
 	}
 	games[name].data = {nodes: nodes};
-	for(var i = 0; i < games[name].users.length; i++) {
-		var cconn = logins[games[name].users[i]].conn;
-		cconn.send("gamestart:"+JSON.stringify(games[name].data));
-	}
+	broadcast("gamestart:"+JSON.stringify(games[name].data), games[name]);
 };
 
 var logins = {};
@@ -225,12 +226,7 @@ var commands = {
 					conn.send("error:Game already started.");
 					return;
 				}
-				for(var i = 0; i < gd.users.length; i++) {
-					var id = gd.users[i];
-					var cconn = logins[id].conn;
-					var cname = logins[id].name;
-					cconn.send("join:"+logins[d.user].name);
-				}
+				broadcast("join:"+logins[d.user].name, gd);
 			}
 			else {
 				gd = {users: []};
@@ -282,13 +278,16 @@ var commands = {
 						if("data" in gd) {
 							if(src >= 0 && src < gd.data.nodes.length && dst >= 0 && dst < gd.data.nodes.length) {
 								if(ind == gd.data.nodes[src].owner) {
+									var size = Math.floor(gd.data.nodes[src].units[ind]);
+									gd.data.nodes[src].units[ind] -= size;
 									var group = {
 										source: src,
 										dest: dst,
 										start: new Date().getTime(),
-										duration: distance(gd.data.nodes[src], gd.data.nodes[dst])/gd.data.nodes[src].unitSpeed
+										duration: Math.round(distance(gd.data.nodes[src], gd.data.nodes[dst])/gd.data.nodes[src].unitSpeed),
+										size: size
 									};
-									conn.send("send:"+JSON.stringify(group));
+									broadcast("send:"+JSON.stringify(group), gd);
 									if(!("unitgroups" in gd.data)) {
 										gd.data.unitgroups = [];
 									}
@@ -350,6 +349,13 @@ var handleMessage = function(user, message) {
 	}
 };
 
+var broadcast = function(msg, gd) {
+	for(var j = 0; j < gd.users.length; j++) {
+		var cconn = logins[gd.users[j]].conn;
+		cconn.send(msg);
+	}
+};
+
 var lastTick = -1;
 
 var tick = function() {
@@ -361,50 +367,71 @@ var tick = function() {
 				var groups = gd.data.unitgroups;
 				for(var i = 0; i < groups.length; i++) {
 					var group = groups[i];
-					if(group.start+group.duration >= time) {
+					if(group.start+group.duration <= time) {
 						// reached destination
 						var node = gd.data.nodes[group.dest];
-						if(!(group.owner in node.units)) {
-							node.units[group.owner] = 0;
+						var owner = gd.data.nodes[group.source].owner;
+						if(!(owner in node.units)) {
+							node.units[owner] = 0;
 						}
-						node.units[group.owner] += group.size;
+						node.units[owner] += group.size;
+						groups.splice(i, 1);
+						i--;
 					}
 				}
 			}
+			var winner = -1;
 			for(var i = 0; i < gd.data.nodes.length; i++) {
 				var node = gd.data.nodes[i];
 				if(!("units" in node)) {
 					node.units = {};
 				}
 				if(node.owner != -1) {
+					if(winner == -1) winner = node.owner;
+					else if(winner != node.owner) winner = -2;
 					if(!(node.owner in node.units)) {
 						node.units[node.owner] = 0;
 					}
 					// generate new units
-					node.units[node.owner] = Math.min(node.units[node.owner] + (time-lastTick)*node.generationTime, node.unitCap);
+					node.units[node.owner] = Math.min(node.units[node.owner] + (time-lastTick)/node.generationTime, node.unitCap);
+					for(var k in node.units) {
+						if(node.units[k] > 0) {
+							for(var k2 in node.units) {
+								if(k != k2 && node.units[k2] > 0) {
+									console.log(k+" is killing "+k2+", "+node.units[k]+" to "+node.units[k2]);
+									if(Math.random() / node.units[k] < GAMERULES.CHANCE_TO_KILL * (time-lastTick)) {
+										node.units[k2]--;
+										broadcast("death:"+i+","+k2, gd);
+										console.log(k2+" lost a minion");
+									}
+									break;
+								}
+							}
+						}
+					}
 				}
 				// ensure owner is correct
 				var rightfulOwner = -1;
 				for(var u in node.units) {
-					if(node.units > 0) {
+					if(node.units[u] > 0) {
 						if(rightfulOwner == -1) {
 							rightfulOwner = u;
 						}
 						else {
 							// multiple owner's units, node owner unknown
-							rightfulOwner = -1;
+							rightfulOwner = -2;
 						}
 					}
 				}
-				if(rightfulOwner != -1) {
+				if(rightfulOwner >= 0) {
 					if(node.owner != rightfulOwner) {
 						node.owner = rightfulOwner;
-						for(var j = 0; j < gd.users.length; j++) {
-							var cconn = logins[gd.users[j]].conn;
-							cconn.send("update:"+i+",owner,"+node.owner);
-						}
+						broadcast("update:"+i+",owner,"+node.owner, gd);
 					}
 				}
+			}
+			if(winner >= 0) {
+				handleWin(gd, winner);
 			}
 		}
 	}
