@@ -400,7 +400,7 @@ var tick = function() {
 							break;
 						}
 					}
-					node.units[node.owner] = Math.min(node.units[node.owner] + (time-lastTick)/generationTime, node.unitCap);
+					node.units[node.owner] = Math.max(node.units[node.owner], Math.min(node.units[node.owner] + (time-lastTick)/generationTime, node.unitCap));
 					for(var k in node.units) {
 						if(node.units[k] > 0) {
 							for(var k2 in node.units) {
@@ -408,7 +408,6 @@ var tick = function() {
 									if(Math.random() / node.units[k] < GAMERULES.CHANCE_TO_KILL * (time-lastTick)) {
 										node.units[k2]--;
 										broadcast("death:"+i+","+k2, gd);
-										console.log(k2+" lost a minion");
 									}
 									break;
 								}
