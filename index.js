@@ -285,7 +285,8 @@ var commands = {
 										dest: dst,
 										start: new Date().getTime(),
 										duration: Math.round(distance(gd.data.nodes[src], gd.data.nodes[dst])/gd.data.nodes[src].unitSpeed),
-										size: size
+										size: size,
+										owner: gd.data.nodes[src].owner
 									};
 									broadcast("send:"+JSON.stringify(group), gd);
 									if(!("unitgroups" in gd.data)) {
@@ -370,11 +371,10 @@ var tick = function() {
 					if(group.start+group.duration <= time) {
 						// reached destination
 						var node = gd.data.nodes[group.dest];
-						var owner = gd.data.nodes[group.source].owner;
-						if(!(owner in node.units)) {
-							node.units[owner] = 0;
+						if(!(group.owner in node.units)) {
+							node.units[group.owner] = 0;
 						}
-						node.units[owner] += group.size;
+						node.units[group.owner] += group.size;
 						groups.splice(i, 1);
 						i--;
 					}
