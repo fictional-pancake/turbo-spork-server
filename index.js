@@ -40,7 +40,7 @@ var handleWeb = function(req, res, POST) {
 		res.write("</body></html>");
 		res.end();
 	} else if (req.url == "/signupaction") {
-		if (POST.username.indexOf(":") == -1 && POST.password.indexOf(":") == -1) {
+		if (POST.username && POST.password && POST.username.indexOf(":") == -1 && POST.password.indexOf(":") == -1) {
 			db.query("SELECT EXISTS(SELECT 1 FROM users WHERE name=$1)",  [POST.username], function(err, result) {
 				if (err) {
 					console.error("query is scrublord and didn't work", err);
@@ -69,6 +69,10 @@ var handleWeb = function(req, res, POST) {
 					});
 				}
 			});
+		}
+		else {
+			res.write("Invalid request.  You must have a username and password that don't contain \":\".");
+			res.end();
 		}
 	} else {
 		res.writeHead(404, {"Content-type": "text/plain"});
@@ -286,7 +290,7 @@ var commands = {
 										start: new Date().getTime(),
 										duration: Math.round(distance(gd.data.nodes[src], gd.data.nodes[dst])/gd.data.nodes[src].unitSpeed),
 										size: size,
-										owner: gd.data.nodes[src].owner
+										owner: parseInt(gd.data.nodes[src].owner)
 									};
 									broadcast("send:"+JSON.stringify(group), gd);
 									if(!("unitgroups" in gd.data)) {
@@ -314,6 +318,10 @@ var commands = {
 				conn.send("error:Invalid attack");
 			}
 		}
+	},
+	keepalive: {
+		data: false,
+		handler: function() {}
 	}
 };
 
@@ -387,7 +395,14 @@ var tick = function() {
 					node.units = {};
 				}
 				if(node.owner != -1) {
-					if(winner == -1) winner = node.owner;
+					if(winner == -1) {
+						// make sure there's no battle going on
+						var numOwners = 0;
+						for(var u in node.units) {
+							if(node.units[u] > 0) numOwners++;
+						}
+						winner = node.owner;
+					}
 					else if(winner != node.owner) winner = -2;
 					if(!(node.owner in node.units)) {
 						node.units[node.owner] = 0;
@@ -436,7 +451,17 @@ var tick = function() {
 				}
 			}
 			if(winner >= 0) {
-				handleWin(gd, winner);
+				// make sure they really win
+				var reallyWin = true;
+				for(var j = 0; j < gd.data.unitgroups.length; j++) {
+					var group = gd.data.unitgroups[j];
+					if(group.owner != winner) {
+						reallyWin = false;
+					}
+				}
+				if(reallyWin) {
+					handleWin(gd, winner);
+				}
 			}
 		}
 	}
