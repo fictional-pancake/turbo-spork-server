@@ -393,12 +393,18 @@ var tick = function() {
 						node.units[node.owner] = 0;
 					}
 					// generate new units
-					node.units[node.owner] = Math.min(node.units[node.owner] + (time-lastTick)/node.generationTime, node.unitCap);
+					var generationTime = node.generationTime;
+					for(var u in node.units) {
+						if(u != node.owner && node.units[u] > 0) {
+							generationTime *= 2;
+							break;
+						}
+					}
+					node.units[node.owner] = Math.min(node.units[node.owner] + (time-lastTick)/generationTime, node.unitCap);
 					for(var k in node.units) {
 						if(node.units[k] > 0) {
 							for(var k2 in node.units) {
 								if(k != k2 && node.units[k2] > 0) {
-									console.log(k+" is killing "+k2+", "+node.units[k]+" to "+node.units[k2]);
 									if(Math.random() / node.units[k] < GAMERULES.CHANCE_TO_KILL * (time-lastTick)) {
 										node.units[k2]--;
 										broadcast("death:"+i+","+k2, gd);
