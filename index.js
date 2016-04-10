@@ -1,3 +1,5 @@
+var PROTOCOL_VERSION = 1;
+
 var ws = require('ws');
 var http = require('http');
 var pg = require('pg');
@@ -214,7 +216,6 @@ var games = {};
 
 var commands = {
 	auth: {
-		data: true,
 		handler: function(conn, d) {
 			conn.send("error:You're already authenticated");
 		}
@@ -484,45 +485,55 @@ sockserve.on('connection', function(conn) {
 		conn.removeListener("message", func);
 		console.log(message);
 		var s = message.split(":");
-		if(s.length == 3 && s[0] == "auth") {
+		if(s.length == 4 && s[0] == "auth") {
 			// yes, it is
-			db.query("SELECT * FROM users WHERE name=$1", [s[1]], function(err, result) {
-				if(err) {
-					console.error("QUERY IS SCRUBLORD", err);
-					conn.send("error:query is scrublord");
-					conn.close();
-				}
-				else if(result.rows.length == 1) {
-					password.verify(s[2], result.rows[0].passhash, function(x, data) {
-						if(!x && data) {
-							var id = s[1];
-							console.log(s[1]+" ("+id+") logged in!");
-							if(id in logins) {
-								var tconn = logins[id].conn;
-								tconn.send("error:You logged in from another location");
-								handleLostConnection(id);
-								tconn.close();
+			if(s[3] == PROTOCOL_VERSION) {
+				db.query("SELECT * FROM users WHERE name=$1", [s[1]], function(err, result) {
+					if(err) {
+						console.error("QUERY IS SCRUBLORD", err);
+						conn.send("error:query is scrublord");
+						conn.close();
+					}
+					else if(result.rows.length == 1) {
+						password.verify(s[2], result.rows[0].passhash, function(x, data) {
+							if(!x && data) {
+								var id = s[1];
+								console.log(s[1]+" ("+id+") logged in!");
+								if(id in logins) {
+									var tconn = logins[id].conn;
+									tconn.send("error:You logged in from another location");
+									handleLostConnection(id);
+									tconn.close();
+								}
+								logins[id] = {conn: conn, name: id};
+								conn.send("join:"+s[1]);
+								conn.on("message", handleMessage.bind(conn, id));
+								conn.on("close", handleLostConnection.bind(conn, id));
 							}
-							logins[id] = {conn: conn, name: id};
-							conn.send("join:"+s[1]);
-							conn.on("message", handleMessage.bind(conn, id));
-							conn.on("close", handleLostConnection.bind(conn, id));
-						}
-						else {
-							conn.send("error:Incorrect password");
+							else {
+								conn.send("error:Incorrect password");
+								conn.close();
+							}
+						});
+					}
+					else {
+						try {
+							conn.send("error:Incorrect login");
 							conn.close();
+						} catch(e) {
+							console.error(e);
 						}
-					});
+					}
+				});
+			}
+			else {
+				if(s[3] > PROTOCOL_VERSION) {
+					conn.send("error:Outdated server!");
 				}
 				else {
-					try {
-						conn.send("error:Incorrect login");
-						conn.close();
-					} catch(e) {
-						console.error(e);
-					}
+					conn.send("error:Your client is outdated.  Update to play!");
 				}
-			});
+			}
 		}
 		else {
 			conn.send("error:Invalid auth message");
