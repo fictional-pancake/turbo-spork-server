@@ -5,6 +5,7 @@ var http = require('http');
 var querystring = require('querystring');
 var async = require('async');
 
+var PROTOCOL_VERSION = 1;
 var PORT = process.env.PORT || 5000;
 var USERNAME = "testuser"+(Math.random()+"").substring(2);
 var USERNAME2 = "testuser"+(Math.random()+"").substring(2);
@@ -79,7 +80,7 @@ async.parallel([
 		};
 	}
 ], function() {
-	s.send("auth:"+USERNAME+":"+PASSWORD);
+	s.send("auth:"+USERNAME+":"+PASSWORD+":"+PROTOCOL_VERSION);
 });
 async.parallel([
 	callbackManager.action("1got2"),
@@ -108,7 +109,7 @@ s.onmessage = function(d) {
 			s.send("join:"+ROOM);
 		}
 		else if(state == 2) {
-			s2.send("auth:"+USERNAME2+":"+PASSWORD);
+			s2.send("auth:"+USERNAME2+":"+PASSWORD+":"+PROTOCOL_VERSION);
 		}
 	}
 	else if(state == 3) {
