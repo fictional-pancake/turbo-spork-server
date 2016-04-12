@@ -1,4 +1,4 @@
-var PROTOCOL_VERSION = 1;
+var PROTOCOL_VERSION = 2;
 
 var ws = require('ws');
 var http = require('http');
@@ -111,6 +111,20 @@ var handleWin = function(gd, owner) {
 	delete gd.data;
 };
 
+var adjustForRemoved = function(gd, ind) {
+	var tr = ind;
+	if("data" in gd) {
+		var removed = gd.data.removed.slice().sort();
+		console.log(removed);
+		for(var i = 0; i < removed.length; i++) {
+			if(removed[i] <= tr) {
+				tr++;
+			}
+		}
+	}
+	return tr;
+};
+
 var removeUserFromGames = function(user, died) {
 	for(var id in games) {
 		var ind = games[id].users.indexOf(user);
@@ -123,6 +137,9 @@ var removeUserFromGames = function(user, died) {
 			broadcast("leave:"+logins[user].name, games[id]);
 			if(win) {
 				handleWin(games[id], 0);
+			}
+			else if("data" in games[id]) {
+				games[id].data.removed.push(adjustForRemoved(games[id], ind));
 			}
 		}
 	}
@@ -208,7 +225,7 @@ var startGame = function(name) {
 	for(var x = 0; x < GAMERULES.UNCLAIMED_NODES_AT_START; x++) {
 		nodes.push(createNode({}, nodes));
 	}
-	games[name].data = {nodes: nodes};
+	games[name].data = {nodes: nodes, removed: []};
 	broadcast("gamestart:"+JSON.stringify(games[name].data), games[name]);
 };
 
@@ -282,8 +299,9 @@ var commands = {
 					var ind = gd.users.indexOf(d.user);
 					if(ind>-1) {
 						if("data" in gd) {
+							var owner = adjustForRemoved(gd, ind);
 							if(src >= 0 && src < gd.data.nodes.length && dst >= 0 && dst < gd.data.nodes.length) {
-								if(ind == gd.data.nodes[src].owner) {
+								if(owner == gd.data.nodes[src].owner) {
 									var size = Math.floor(gd.data.nodes[src].units[ind]);
 									gd.data.nodes[src].units[ind] -= size;
 									var group = {
@@ -292,7 +310,7 @@ var commands = {
 										start: new Date().getTime(),
 										duration: Math.round(distance(gd.data.nodes[src], gd.data.nodes[dst])/gd.data.nodes[src].unitSpeed),
 										size: size,
-										owner: parseInt(gd.data.nodes[src].owner)
+										owner: owner
 									};
 									broadcast("send:"+JSON.stringify(group), gd);
 									if(!("unitgroups" in gd.data)) {
