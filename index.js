@@ -134,7 +134,8 @@ var GAMERULES = {
 	MIN_DISTANCE_BETWEEN_NODES: 8,
 	FIELD_SIZE: 100,
 	ATTEMPTS_TO_PLACE_NODES: 5,
-	CHANCE_TO_KILL: 0.0001
+	CHANCE_TO_KILL: 0.0001,
+	TRANSFORM_TIME: 2000
 };
 
 var applyDefault = function(shown, def) {
@@ -169,7 +170,7 @@ var createNode = function(defaults, nodes) {
 		applyDefaultToMap(tc, defaults, "x", Math.floor(Math.random()*(GAMERULES.FIELD_SIZE-GAMERULES.MIN_DISTANCE_BETWEEN_NODES*2))+GAMERULES.MIN_DISTANCE_BETWEEN_NODES);
 		applyDefaultToMap(tc, defaults, "y", Math.floor(Math.random()*(GAMERULES.FIELD_SIZE-GAMERULES.MIN_DISTANCE_BETWEEN_NODES*2))+GAMERULES.MIN_DISTANCE_BETWEEN_NODES);
 		applyDefaultToMap(tc, defaults, "owner", -1);
-		applyDefaultToMap(tc, defaults, "generationTime", 1000);
+		applyDefaultToMap(tc, defaults, "generationTime", 1500);
 		applyDefaultToMap(tc, defaults, "unitCap", 50);
 		applyDefaultToMap(tc, defaults, "unitSpeed", .01);
 		if(nodes && nodes.length > 0) {
@@ -444,11 +445,26 @@ var tick = function() {
 						}
 					}
 				}
+				var keepTransform = false;
 				if(rightfulOwner >= 0) {
 					if(node.owner != rightfulOwner) {
-						node.owner = rightfulOwner;
-						broadcast("update:"+i+",owner,"+node.owner, gd);
+						keepTransform = true;
+						if(node.transformTo != rightfulOwner) {
+							node.owner = -1;
+							broadcast("update:"+i+",owner,-1", gd);
+							node.transformBegin = new Date().getTime();
+							node.transformTo = rightfulOwner;
+						}
+						else if(new Date().getTime()-node.transformBegin > GAMERULES.TRANSFORM_TIME) {
+							node.owner = rightfulOwner;
+							broadcast("update:"+i+",owner,"+node.owner, gd);
+							keepTransform = false;
+						}
 					}
+				}
+				if(!keepTransform) {
+					delete node.transformBegin;
+					delete node.transformTo;
 				}
 			}
 			if(winner >= 0) {
