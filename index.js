@@ -345,6 +345,10 @@ var commands = {
 };
 
 var handleMessage = function(user, message) {
+	if(!(user in logins)) {
+		console.log("User sent a message after leaving?");
+		return;
+	}
 	console.log(user+": "+message);
 	var conn = logins[user].conn;
 	var cmd;
@@ -506,8 +510,10 @@ setInterval(tick, 0);
 
 var handleLostConnection = function(user) {
 	removeUserFromGames(user, true);
-	console.log(logins[user].name+" left");
-	delete logins[user];
+	if(user in logins) {
+		console.log(logins[user].name+" left");
+		delete logins[user];
+	}
 };
 
 var sockserve = new ws.Server({server: webserve});
