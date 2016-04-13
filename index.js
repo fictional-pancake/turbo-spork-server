@@ -97,7 +97,6 @@ var webserve = http.createServer(function(req, res) {
 				var _data = data[i].split("=");
 				POST[_data[0]] = _data[1];
 			}
-			console.log(POST);
 		});
 		req.on('end', hwr);
 	}
@@ -517,7 +516,6 @@ sockserve.on('connection', function(conn) {
 		// this is called the first time the server receives a message
 		// it should be an auth message
 		conn.removeListener("message", func);
-		console.log(message);
 		var s = message.split(":");
 		if(s.length == 4 && s[0] == "auth") {
 			// yes, it is
