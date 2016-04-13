@@ -9,3 +9,10 @@ env:
 before_script:
 - psql -c "create database tss;" -U postgres
 - node_modules/db-migrate/bin/db-migrate up
+deploy:
+  provider: heroku
+  api_key:
+    secure: XF+hHGR0eiDFSh1gV84FdPJAgPP6J1F2E6ivSA8mQZK53Izvb9VFcEgNzsdFjOTFdW9t1b150byo2XXi94eW+MFM+hGRZKxeXFUPH3u8n3SwfgsKK02Rd3m8c35MFClJd6B5D7BFZquVTBmnF8wzXsIklYSmT6OXS/bX3YERHqVCQN0rpWp3jfrZfemA0c8s1R1XaOJrUws2L6KBIHvEY1Fr17AZ7xYVBeZ+bZeaHoAG3t8kQUWbLtRHeOKvA9eVfMuiDXynRXPx0mnsvCOQtP7TVUhHlrCY8NpwBwJVu5E2MdV/v6Fz/BteM1RCOEC6qggmClhYVfZy0QZXh7OpHQtW9y07cvs9OmCqpI3XBImdJw3tRSaKZu5RcvKqQ+UuQQKrXZtVM7B43Mo3jVyygX7F2Ai9Xa5h63ZJ2I/m+pHacQQU0CRZBsUhRMweWMcUSVR0kPsE8cjASXdiSrEQ7ZwWYmInfCZMgQG/heIPegc5kF8oSF0Xkr08uueUPghrh4nzdnZ3wmw/rZQqj650WLmZ71HIrUaa5k1LYHhBCpTaWZffosC4GZYt34QQCpIKpUa4hb8y/Tk7xBqSAq1M685boHtg1e12tmQcPMpGAACY3nRTo2B/Pi/HMVbUNrfasnb7FLGZUQUgamj6oS4vxFo6whmZD5z0VGtkJX78jXk=
+  app: turbo-spork-test
+  on:
+    repo: fictional-pancake/turbo-spork-server
