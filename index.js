@@ -1,4 +1,4 @@
-var PROTOCOL_VERSION = 4;
+var PROTOCOL_VERSION = 5;
 
 var ws = require('ws');
 var http = require('http');
@@ -531,6 +531,15 @@ var tick = function() {
 				if(reallyWin) {
 					handleWin(id, winner);
 				}
+			}
+			if("data" in gd && (!("lastSync" in gd) || time-gd.lastSync > 5000)) {
+				gd.lastSync = new Date().getTime();
+				var msg = "sync:";
+				for(var i = 0; i < gd.data.nodes.length; i++) {
+					var node = gd.data.nodes[i];
+					msg += node.owner+"/"+Math.floor(node.units[node.owner])+",";
+				}
+				broadcast(msg.substring(0, msg.length-1), gd);
 			}
 		}
 		else {
