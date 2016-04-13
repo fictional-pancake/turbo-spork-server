@@ -1,11 +1,10 @@
-require('../index');
+var PROTOCOL_VERSION = require('../index').PROTOCOL_VERSION;
 var assert = require('assert');
 var ws = require('ws');
 var http = require('http');
 var querystring = require('querystring');
 var async = require('async');
 
-var PROTOCOL_VERSION = 1;
 var PORT = process.env.PORT || 5000;
 var USERNAME = "testuser"+(Math.random()+"").substring(2);
 var USERNAME2 = "testuser"+(Math.random()+"").substring(2);

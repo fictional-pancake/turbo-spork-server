@@ -1,4 +1,4 @@
-var PROTOCOL_VERSION = 2;
+var PROTOCOL_VERSION = 3;
 
 var ws = require('ws');
 var http = require('http');
@@ -301,8 +301,8 @@ var commands = {
 						if("data" in gd) {
 							var owner = adjustForRemoved(gd, ind);
 							if(src >= 0 && src < gd.data.nodes.length && dst >= 0 && dst < gd.data.nodes.length) {
-								if(owner == gd.data.nodes[src].owner) {
-									var size = Math.floor(gd.data.nodes[src].units[ind]);
+								if(owner == gd.data.nodes[src].owner || gd.data.nodes[src].units[owner] > 0) {
+									var size = Math.floor(gd.data.nodes[src].units[owner]);
 									gd.data.nodes[src].units[ind] -= size;
 									var group = {
 										source: src,
@@ -576,3 +576,5 @@ sockserve.on('connection', function(conn) {
 	};
 	conn.on('message', func);
 });
+
+module.exports = {PROTOCOL_VERSION: PROTOCOL_VERSION};
