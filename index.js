@@ -1,4 +1,4 @@
-var PROTOCOL_VERSION = 3;
+var PROTOCOL_VERSION = 4;
 
 var ws = require('ws');
 var http = require('http');
@@ -105,9 +105,15 @@ var webserve = http.createServer(function(req, res) {
 	}
 }).listen(process.env.PORT || 5000);
 
-var handleWin = function(gd, owner) {
+var handleWin = function(id, owner) {
+	var gd = games[id];
 	broadcast("win:"+logins[gd.users[owner]].name, gd);
 	delete gd.data;
+	if(id.indexOf("matchme") == 0) {
+		while(gd.users.length > 0) {
+			removeUserFromGames(gd.users[0]);
+		}
+	}
 };
 
 var adjustForRemoved = function(gd, ind) {
@@ -135,7 +141,7 @@ var removeUserFromGames = function(user, died) {
 			var win = games[id].users.length == 1 && ("data" in games[id]);
 			broadcast("leave:"+logins[user].name, games[id]);
 			if(win) {
-				handleWin(games[id], 0);
+				handleWin(id, 0);
 			}
 			else if("data" in games[id]) {
 				games[id].data.removed.push(adjustForRemoved(games[id], ind));
@@ -151,7 +157,8 @@ var GAMERULES = {
 	FIELD_SIZE: 100,
 	ATTEMPTS_TO_PLACE_NODES: 5,
 	CHANCE_TO_KILL: 0.0001,
-	TRANSFORM_TIME: 2000
+	TRANSFORM_TIME: 2000,
+	MATCH_WAIT_TIME: 10000
 };
 
 var applyDefault = function(shown, def) {
@@ -240,6 +247,26 @@ var commands = {
 	join: {
 		data: true,
 		handler: function(conn, d) {
+			if(d.data == "matchme") {
+				var found = false;
+				for(var id in games) {
+					if(id.indexOf("matchme") == 0 && !("data" in games[id])) {
+						found = true;
+						d.data = id;
+					}
+				}
+				if(!found) {
+					var i = 1;
+					while(true) {
+						var name = "matchme"+i;
+						if(!(name in games && "data" in games[name])) {
+							d.data = name;
+							break;
+						}
+						i++;
+					}
+				}
+			}
 			var gd;
 			removeUserFromGames(d.user);
 			if(d.data in games) {
@@ -251,7 +278,7 @@ var commands = {
 				broadcast("join:"+logins[d.user].name, gd);
 			}
 			else {
-				gd = {users: []};
+				gd = {users: [], created: new Date().getTime()};
 				games[d.data] = gd;
 			}
 			gd.users.push(d.user);
@@ -268,19 +295,23 @@ var commands = {
 				var gd = games[id];
 				var ind = gd.users.indexOf(d.user);
 				if(ind>-1) {
-					if(ind == 0) {
-						if(gd.users.length > 1) {
-							startGame(id);
+					if(ind == 0 && id.indexOf("matchme") != 0) {
+						if("data" in gd) {
+							conn.send("error:Game already started.");
 						}
 						else {
-							conn.send("error:You need at least two players");
+							if(gd.users.length > 1) {
+								startGame(id);
+							}
+							else {
+								conn.send("error:You need at least two players");
+							}
 						}
-						return;
 					}
 					else {
 						conn.send("error:You aren't the game leader.");
-						return;
 					}
+					return;
 				}
 			}
 			conn.send("error:You aren't in a room.");
@@ -498,8 +529,13 @@ var tick = function() {
 					}
 				}
 				if(reallyWin) {
-					handleWin(gd, winner);
+					handleWin(id, winner);
 				}
+			}
+		}
+		else {
+			if(id.indexOf("matchme") == 0 && gd.created + GAMERULES.MATCH_WAIT_TIME <= time && gd.users.length > 1) {
+				startGame(id);
 			}
 		}
 	}
