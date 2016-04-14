@@ -12,4 +12,8 @@ s.onmessage = function(d) {
 		joined = true;
 	}
 };
+s.onclose = function() {
+	console.log("Lost connection");
+	process.exit();
+};
 setInterval(function(){},0);

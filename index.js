@@ -448,13 +448,15 @@ var tick = function() {
 				if(!("units" in node)) {
 					node.units = {};
 				}
+				var numOwners = 0;
+				for(var u in node.units) {
+					if(node.units[u] > 0) numOwners++;
+				}
+				if(numOwners > 1) {
+					winner = -2;
+				}
 				if(node.owner != -1) {
 					if(winner == -1) {
-						// make sure there's no battle going on
-						var numOwners = 0;
-						for(var u in node.units) {
-							if(node.units[u] > 0) numOwners++;
-						}
 						winner = node.owner;
 					}
 					else if(winner != node.owner) winner = -2;
@@ -546,6 +548,9 @@ var tick = function() {
 			if(id.indexOf("matchme") == 0 && gd.created + GAMERULES.MATCH_WAIT_TIME <= time && gd.users.length > 1) {
 				startGame(id);
 			}
+		}
+		if(gd.users.length < 1 && !("data" in gd)) {
+			delete games[id];
 		}
 	}
 	lastTick = time;
