@@ -30,8 +30,8 @@ var password = {
 
 var handleWeb = function(req, res, POST) {
 	if (req.url == "/") {
-		res.writeHead(200, {"Content-type": "text/plain"});
-		res.write("Future home of Turbo-Spork!");
+		res.writeHead(200, {"Content-type": "text/html"});
+		res.write("This is the Turbo-Spork website!  There's not much here, but you can <a href=\"/signup\">create an account</a>");
 		res.end();
 	} else if (req.url == "/signup") {
 		res.writeHead(200, {"Content-type": "text/html"});
