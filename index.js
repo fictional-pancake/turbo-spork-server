@@ -1,4 +1,4 @@
-var PROTOCOL_VERSION = 5;
+var PROTOCOL_VERSION = 6;
 
 var ws = require('ws');
 var http = require('http');
@@ -235,6 +235,11 @@ var startGame = function(name) {
 	broadcast("gamestart:"+JSON.stringify(games[name].data), games[name]);
 };
 
+var lastGroupID = 0;
+var nextGroupID = function() {
+	return ++lastGroupID;
+};
+
 var logins = {};
 var games = {};
 
@@ -337,12 +342,13 @@ var commands = {
 									var group = {
 										source: src,
 										dest: dst,
-										start: new Date().getTime(),
 										duration: Math.round(distance(gd.data.nodes[src], gd.data.nodes[dst])/gd.data.nodes[src].unitSpeed),
 										size: size,
-										owner: owner
+										owner: owner,
+										id: nextGroupID()
 									};
 									broadcast("send:"+JSON.stringify(group), gd);
+									group.start = new Date().getTime();
 									if(!("unitgroups" in gd.data)) {
 										gd.data.unitgroups = [];
 									}
@@ -535,13 +541,35 @@ var tick = function() {
 				}
 			}
 			if("data" in gd && (!("lastSync" in gd) || time-gd.lastSync > 5000)) {
-				gd.lastSync = new Date().getTime();
-				var msg = "sync:";
+				gd.lastSync = time;
+				var syncData = {
+					nodes: [],
+					groups: {}
+				};
 				for(var i = 0; i < gd.data.nodes.length; i++) {
-					var node = gd.data.nodes[i];
-					msg += node.owner+"/"+Math.floor(node.units[node.owner])+",";
+					var ta = {
+						owner: gd.data.nodes[i].owner,
+						units: {}
+					};
+					for(var u in gd.data.nodes[i].units) {
+						var v = gd.data.nodes[i].units[u];
+						if(v > 0) {
+							ta.units[u] = Math.floor(v);
+						}
+					}
+					syncData.nodes.push(ta);
 				}
-				broadcast(msg.substring(0, msg.length-1), gd);
+				if("unitgroups" in gd.data) {
+					console.log(gd.data.unitgroups);
+					console.log(":)");
+					for(var i = 0; i < gd.data.unitgroups.length; i++) {
+						var group = gd.data.unitgroups[i];
+						console.log(group);
+						syncData.groups[group.id] = group.size;
+					}
+				}
+				console.log(syncData);
+				broadcast("sync:"+JSON.stringify(syncData), gd);
 			}
 		}
 		else {
