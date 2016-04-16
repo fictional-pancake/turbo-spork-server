@@ -1,4 +1,4 @@
-var PROTOCOL_VERSION = 6;
+var PROTOCOL_VERSION = 7;
 
 var ws = require('ws');
 var http = require('http');
@@ -291,6 +291,12 @@ var commands = {
 				var id = gd.users[i];
 				conn.send("join:"+logins[id].name);
 			}
+		}
+	},
+	leave: {
+		data: false,
+		handler: function(conn, d) {
+			removeUserFromGames(d.user);
 		}
 	},
 	gamestart: {
@@ -589,8 +595,10 @@ setInterval(tick, 0);
 var handleLostConnection = function(user) {
 	removeUserFromGames(user, true);
 	if(user in logins) {
-		console.log(logins[user].name+" left");
-		delete logins[user];
+		if(logins[user].conn == this) { // sometimes it's not, I don't know why
+			console.log(logins[user].name+" left");
+			delete logins[user];
+		}
 	}
 };
 
@@ -614,11 +622,10 @@ sockserve.on('connection', function(conn) {
 						password.verify(s[2], result.rows[0].passhash, function(x, data) {
 							if(!x && data) {
 								var id = s[1];
-								console.log(s[1]+" ("+id+") logged in!");
+								console.log(id+" logged in!");
 								if(id in logins) {
 									var tconn = logins[id].conn;
 									tconn.send("error:You logged in from another location");
-									handleLostConnection(id);
 									tconn.close();
 								}
 								logins[id] = {conn: conn, name: id};
