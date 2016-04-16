@@ -484,16 +484,16 @@ var tick = function() {
 						}
 					}
 					node.units[node.owner] = Math.max(node.units[node.owner], Math.min(node.units[node.owner] + (time-lastTick)/generationTime, node.unitCap));
-					for(var k in node.units) {
-						if(node.units[k] > 0) {
-							for(var k2 in node.units) {
-								if(k != k2 && node.units[k2] > 0) {
-									if(Math.random() / node.units[k] < GAMERULES.CHANCE_TO_KILL * (time-lastTick)) {
-										node.units[k2]--;
-										broadcast("death:"+i+","+k2, gd);
-									}
-									break;
+				}
+				for(var k in node.units) {
+					if(node.units[k] > 0) {
+						for(var k2 in node.units) {
+							if(k != k2 && node.units[k2] > 0) {
+								if(Math.random() / node.units[k] < GAMERULES.CHANCE_TO_KILL * (time-lastTick)) {
+									node.units[k2]--;
+									broadcast("death:"+i+","+k2, gd);
 								}
+								break;
 							}
 						}
 					}
