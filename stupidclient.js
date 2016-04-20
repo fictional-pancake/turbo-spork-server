@@ -36,11 +36,12 @@ s.onmessage = function(d) {
 	else if(d.data.indexOf("update") == 0) {
 		var sp = d.data.substring(7).split(",");
 		if(sp[1] == "owner") {
+			var id = parseInt(sp[0]);
 			if(sp[2] == users.indexOf(process.argv[2])) {
-				ai.mynodes.push(sp[0]);
+				ai.mynodes.push(id);
 			}
 			else {
-				var ind = ai.mynodes.indexOf(sp[0]);
+				var ind = ai.mynodes.indexOf(id);
 				if(ind > -1) {
 					ai.mynodes.splice(ind,1);
 				}
