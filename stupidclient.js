@@ -5,10 +5,15 @@ console.log(url);
 var ai = null;
 var s = new ws(url);
 s.onopen = function() {
-	s.send("auth:"+process.argv[2]+":"+process.argv[3]+":7");
+	s.send("auth:"+process.argv[2]+":"+process.argv[3]+":8");
 };
 var joined = false;
 var users;
+var maybeStart = function() {
+	if(users.length > 1 && users[0] == process.argv[2]) {
+		s.send("gamestart");
+	}
+};
 s.onmessage = function(d) {
 	console.log(d.data);
 	if(!joined || d.data == "leave:"+process.argv[2]) {
@@ -19,12 +24,14 @@ s.onmessage = function(d) {
 	}
 	else if(d.data.indexOf("join") == 0) {
 		users.push(d.data.substring(5));
+		maybeStart();
 	}
 	else if(d.data.indexOf("leave") == 0) {
 		users.splice(users.indexOf(d.data.substring(6)),1);
 	}
 	else if(d.data.indexOf("win") == 0) {
 		ai = null;
+		maybeStart();
 	}
 	else if(d.data.indexOf("update") == 0) {
 		var sp = d.data.substring(7).split(",");

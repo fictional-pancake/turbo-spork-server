@@ -1,4 +1,4 @@
-var PROTOCOL_VERSION = 7;
+var PROTOCOL_VERSION = 8;
 
 var ws = require('ws');
 var http = require('http');
@@ -147,6 +147,15 @@ var removeUserFromGames = function(user, died) {
 				games[id].data.removed.push(adjustForRemoved(games[id], ind));
 			}
 		}
+		else if("spectators" in games[id]) {
+			var si = games[id].spectators.indexOf(user);
+			if(si > -1) {
+				if(!died) {
+					logins[user].conn.send("leave:"+logins[user].name);
+				}
+				games[id].spectators.splice(si, 1);
+			}
+		}
 	}
 };
 
@@ -293,6 +302,29 @@ var commands = {
 			}
 		}
 	},
+	spectate: {
+		data: true,
+		handler: function(conn, d) {
+			if(d.data in games) {
+				removeUserFromGames(d.user);
+				var gd = games[d.data];
+				if(!("spectators" in gd)) {
+					gd.spectators = [];
+				}
+				gd.spectators.push(d.user);
+				for(var i = 0; i < gd.users.length; i++) {
+					conn.send("join:"+logins[gd.users[i]].name);
+				}
+				if("data" in gd) {
+					conn.send("gamestart:"+JSON.stringify({nodes: gd.data.nodes}));
+					sync(gd);
+				}
+			}
+			else {
+				conn.send("error:Nobody's there.  You can't spectate them.");
+			}
+		}
+	},
 	leave: {
 		data: false,
 		handler: function(conn, d) {
@@ -425,10 +457,44 @@ var handleMessage = function(user, message) {
 };
 
 var broadcast = function(msg, gd) {
-	for(var j = 0; j < gd.users.length; j++) {
-		var cconn = logins[gd.users[j]].conn;
+	var recipients = gd.users;
+	if("spectators" in gd) recipients = recipients.concat(gd.spectators);
+	for(var j = 0; j < recipients.length; j++) {
+		var cconn = logins[recipients[j]].conn;
 		cconn.send(msg);
 	}
+};
+
+var sync = function(gd) {
+	gd.lastSync = new Date().getTime();
+	var syncData = {
+		nodes: [],
+		groups: {}
+	};
+	for(var i = 0; i < gd.data.nodes.length; i++) {
+		var ta = {
+			owner: gd.data.nodes[i].owner,
+			units: {}
+		};
+		for(var u in gd.data.nodes[i].units) {
+			var v = gd.data.nodes[i].units[u];
+			if(v > 0) {
+				ta.units[u] = Math.floor(v);
+			}
+		}
+		syncData.nodes.push(ta);
+	}
+	if("unitgroups" in gd.data) {
+		console.log(gd.data.unitgroups);
+		console.log(":)");
+		for(var i = 0; i < gd.data.unitgroups.length; i++) {
+			var group = gd.data.unitgroups[i];
+			console.log(group);
+			syncData.groups[group.id] = group.size;
+		}
+	}
+	console.log(syncData);
+	broadcast("sync:"+JSON.stringify(syncData), gd);
 };
 
 var lastTick = -1;
@@ -547,35 +613,7 @@ var tick = function() {
 				}
 			}
 			if("data" in gd && (!("lastSync" in gd) || time-gd.lastSync > 5000)) {
-				gd.lastSync = time;
-				var syncData = {
-					nodes: [],
-					groups: {}
-				};
-				for(var i = 0; i < gd.data.nodes.length; i++) {
-					var ta = {
-						owner: gd.data.nodes[i].owner,
-						units: {}
-					};
-					for(var u in gd.data.nodes[i].units) {
-						var v = gd.data.nodes[i].units[u];
-						if(v > 0) {
-							ta.units[u] = Math.floor(v);
-						}
-					}
-					syncData.nodes.push(ta);
-				}
-				if("unitgroups" in gd.data) {
-					console.log(gd.data.unitgroups);
-					console.log(":)");
-					for(var i = 0; i < gd.data.unitgroups.length; i++) {
-						var group = gd.data.unitgroups[i];
-						console.log(group);
-						syncData.groups[group.id] = group.size;
-					}
-				}
-				console.log(syncData);
-				broadcast("sync:"+JSON.stringify(syncData), gd);
+				sync(gd);
 			}
 		}
 		else {
@@ -584,6 +622,12 @@ var tick = function() {
 			}
 		}
 		if(gd.users.length < 1 && !("data" in gd)) {
+			if("spectators" in gd) {
+				for(var i = 0; i < gd.spectators.length; i++) {
+					var user = gd.spectators[i];
+					logins[user].conn.send("leave:"+logins[user].name);
+				}
+			}
 			delete games[id];
 		}
 	}
