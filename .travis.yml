@@ -22,3 +22,4 @@ deploy:
   on:
     repo: fictional-pancake/turbo-spork-server
     tags: true
+    all_branches: true
