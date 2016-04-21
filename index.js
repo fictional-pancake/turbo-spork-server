@@ -424,7 +424,7 @@ var commands = {
 				var gd = games[id];
 				var ind = gd.users.indexOf(d.user);
 				if(ind > -1) {
-					broadcast(gd, "chat:"+logins[d.user].name+":"+d.data);
+					broadcast("chat:"+logins[d.user].name+":"+d.data, gd);
 					return;
 				}
 			}

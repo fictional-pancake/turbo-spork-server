@@ -5,7 +5,7 @@ console.log(url);
 var ai = null;
 var s = new ws(url);
 s.onopen = function() {
-	s.send("auth:"+process.argv[2]+":"+process.argv[3]+":8");
+	s.send("auth:"+process.argv[2]+":"+process.argv[3]+":9");
 };
 var joined = false;
 var users;
