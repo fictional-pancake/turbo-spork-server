@@ -1,4 +1,4 @@
-var PROTOCOL_VERSION = 8;
+var PROTOCOL_VERSION = 9;
 
 var ws = require('ws');
 var http = require('http');
@@ -416,6 +416,20 @@ var commands = {
 	keepalive: {
 		data: false,
 		handler: function() {}
+	},
+	chat: {
+		data: true,
+		handler: function(conn, d) {
+			for(var id in games) {
+				var gd = games[id];
+				var ind = gd.users.indexOf(d.user);
+				if(ind > -1) {
+					broadcast(gd, "chat:"+logins[d.user].name+":"+d.data);
+					return;
+				}
+			}
+			conn.send("error:You're not in a room.");
+		}
 	}
 };
 
