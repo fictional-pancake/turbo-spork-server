@@ -9,9 +9,17 @@ before_script:
 - psql -c "create database tss;" -U postgres
 - node_modules/db-migrate/bin/db-migrate up
 deploy:
-  provider: heroku
+- provider: heroku
   api_key:
     secure: XF+hHGR0eiDFSh1gV84FdPJAgPP6J1F2E6ivSA8mQZK53Izvb9VFcEgNzsdFjOTFdW9t1b150byo2XXi94eW+MFM+hGRZKxeXFUPH3u8n3SwfgsKK02Rd3m8c35MFClJd6B5D7BFZquVTBmnF8wzXsIklYSmT6OXS/bX3YERHqVCQN0rpWp3jfrZfemA0c8s1R1XaOJrUws2L6KBIHvEY1Fr17AZ7xYVBeZ+bZeaHoAG3t8kQUWbLtRHeOKvA9eVfMuiDXynRXPx0mnsvCOQtP7TVUhHlrCY8NpwBwJVu5E2MdV/v6Fz/BteM1RCOEC6qggmClhYVfZy0QZXh7OpHQtW9y07cvs9OmCqpI3XBImdJw3tRSaKZu5RcvKqQ+UuQQKrXZtVM7B43Mo3jVyygX7F2Ai9Xa5h63ZJ2I/m+pHacQQU0CRZBsUhRMweWMcUSVR0kPsE8cjASXdiSrEQ7ZwWYmInfCZMgQG/heIPegc5kF8oSF0Xkr08uueUPghrh4nzdnZ3wmw/rZQqj650WLmZ71HIrUaa5k1LYHhBCpTaWZffosC4GZYt34QQCpIKpUa4hb8y/Tk7xBqSAq1M685boHtg1e12tmQcPMpGAACY3nRTo2B/Pi/HMVbUNrfasnb7FLGZUQUgamj6oS4vxFo6whmZD5z0VGtkJX78jXk=
   app: turbo-spork-test
   on:
     repo: fictional-pancake/turbo-spork-server
+- provider: heroku
+  api_key:
+    secure: IEIsi9yWi12GUBL4fEC8258tNKKLe2/WhFa1FCgARLa+CssNxUGGOltV80ZqdN+nqgMa355Sw9i1q8pYL5bde7ko2aTQfeO5ejuoYwXN9kcWaYT2HskoYQqwqNLiSu7iynAMBHRfIVtAvomFCZ23s2p3EqTF5zvR6GoI6VNdnGsPra606Mc01EKKlauQcdiztsG/RKtS+N/wWDB2w4oJuufIw62rgd+JYghFCLBJGiPqWyVx+EcKOrpgoCu0KLidzeOXcCRU5JjFgK+MKbpf/oTzZBmMB7JDyapGvQpaFX/Rs+K9Ux5VPIPT+SienjUSSo36f3aXEIR661YU9T8dg3BIca/bNqWM/EpOW+CzcMVlkWpa5fR4kkwmQT0cShmq7GpNeYpaqPeC89HXyGu0cjC9fnCdHozSbgaWQLZdAijqWLmPeFl4zpv1xTCJu3PPBp+NqZz4ee3AfySRH6tkNzC4xwAUWtHWYrDuItWYIogqVttGvj4mfhK6DVevMs3ebIhKdAmznOdZi9ATn4xHYv3Z+Lpo3i/+CcAeGaeAlsS6Hwy9JNNYsy5EVbpdxmaf6nRfLs9tpM+NqEXiqwEUUZW1gmdwCtAAz/gbvlC6KO2cTVod5Evs+Fm8qu4k7KRAGv2h+eEgbPIBFcmHa80+tACkBAvhOYdCV/YZgqNoFlI=
+  app: turbo-spork
+  on:
+    repo: fictional-pancake/turbo-spork-server
+    tags: true
+    all_branches: true
