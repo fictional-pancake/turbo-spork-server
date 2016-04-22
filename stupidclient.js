@@ -45,7 +45,7 @@ s.onmessage = function(d) {
 	}
 	else if(d.data.indexOf("update") == 0) {
 		var sp = d.data.substring(7).split(",");
-		if(sp[1] == "owner") {
+		if(sp[1] == "owner" && ai) {
 			var id = parseInt(sp[0]);
 			if(sp[2] == users.indexOf(opts.username)) {
 				ai.mynodes.push(id);

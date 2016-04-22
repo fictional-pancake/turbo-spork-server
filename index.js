@@ -1,4 +1,5 @@
 var PROTOCOL_VERSION = 9;
+var COMPATIBLE_VERSIONS = [8, 7];
 
 var ws = require('ws');
 var http = require('http');
@@ -424,7 +425,7 @@ var commands = {
 				var gd = games[id];
 				var ind = gd.users.indexOf(d.user);
 				if(ind > -1) {
-					broadcast("chat:"+logins[d.user].name+":"+d.data, gd);
+					broadcast("chat:"+logins[d.user].name+":"+d.data, gd, 9);
 					return;
 				}
 			}
@@ -470,12 +471,15 @@ var handleMessage = function(user, message) {
 	}
 };
 
-var broadcast = function(msg, gd) {
+var broadcast = function(msg, gd, minVersion) {
 	var recipients = gd.users;
 	if("spectators" in gd) recipients = recipients.concat(gd.spectators);
 	for(var j = 0; j < recipients.length; j++) {
-		var cconn = logins[recipients[j]].conn;
-		cconn.send(msg);
+		var userdata = logins[recipients[j]];
+		if(!minVersion || userdata.version >= minVersion) {
+			var cconn = userdata.conn;
+			cconn.send(msg);
+		}
 	}
 };
 
@@ -669,7 +673,9 @@ sockserve.on('connection', function(conn) {
 		var s = message.split(":");
 		if(s.length == 4 && s[0] == "auth") {
 			// yes, it is
-			if(s[3] == PROTOCOL_VERSION) {
+			var version = parseInt(s[3]);
+			console.log("someone joining with version "+version);
+			if(version == PROTOCOL_VERSION || COMPATIBLE_VERSIONS.indexOf(version) > -1) {
 				db.query("SELECT * FROM users WHERE name=$1", [s[1]], function(err, result) {
 					if(err) {
 						console.error("QUERY IS SCRUBLORD", err);
@@ -686,7 +692,7 @@ sockserve.on('connection', function(conn) {
 									tconn.send("error:You logged in from another location");
 									tconn.close();
 								}
-								logins[id] = {conn: conn, name: id};
+								logins[id] = {conn: conn, name: id, version: version};
 								conn.send("join:"+s[1]);
 								conn.on("message", handleMessage.bind(conn, id));
 								conn.on("close", handleLostConnection.bind(conn, id));
@@ -708,7 +714,7 @@ sockserve.on('connection', function(conn) {
 				});
 			}
 			else {
-				if(s[3] > PROTOCOL_VERSION) {
+				if(version > PROTOCOL_VERSION) {
 					conn.send("error:Outdated server!");
 				}
 				else {
