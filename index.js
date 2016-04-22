@@ -110,6 +110,18 @@ var webserve = http.createServer(function(req, res) {
 	}
 }).listen(process.env.PORT || 5000);
 
+var broadcast = function(msg, gd, minVersion) {
+	var recipients = gd.users;
+	if("spectators" in gd) recipients = recipients.concat(gd.spectators);
+	for(var j = 0; j < recipients.length; j++) {
+		var userdata = logins[recipients[j]];
+		if(!minVersion || userdata.version >= minVersion) {
+			var cconn = userdata.conn;
+			cconn.send(msg);
+		}
+	}
+};
+
 var handleWin = function(id, owner) {
 	var gd = games[id];
 	broadcast("win:"+logins[gd.users[owner]].name, gd);
@@ -288,7 +300,7 @@ var commands = {
 			var gd;
 			removeUserFromGames(d.user);
 			if(d.data in games) {
-				var gd = games[d.data];
+				gd = games[d.data];
 				if("data" in gd) {
 					conn.send("error:Game already started.");
 					return;
@@ -471,18 +483,6 @@ var handleMessage = function(user, message) {
 	}
 	else {
 		conn.send("error:Invalid command");
-	}
-};
-
-var broadcast = function(msg, gd, minVersion) {
-	var recipients = gd.users;
-	if("spectators" in gd) recipients = recipients.concat(gd.spectators);
-	for(var j = 0; j < recipients.length; j++) {
-		var userdata = logins[recipients[j]];
-		if(!minVersion || userdata.version >= minVersion) {
-			var cconn = userdata.conn;
-			cconn.send(msg);
-		}
 	}
 };
 
