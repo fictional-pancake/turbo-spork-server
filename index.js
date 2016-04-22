@@ -70,7 +70,6 @@ var handleWeb = function(req, res, POST) {
 			});
 		}
 		else {
-			console.log(POST);
 			res.write("Invalid request.  You must have a username and password that don't contain \":\".");
 			res.end();
 		}
@@ -99,17 +98,21 @@ var handleWeb = function(req, res, POST) {
 };
 
 var webserve = http.createServer(function(req, res) {
-	var hwr = handleWeb.bind(this, req, res);
+	var POST = {};
+	var hwr = handleWeb.bind(this, req, res, POST);
 	console.log(req.url);
 	if (req.method == 'POST') {
 		console.log("it's POST");
 		var form = new multiparty.Form();
-		form.parse(req, function(err, fields, files) {
-			hwr(fields);
+		form.parse(req, function(err, fields) {
+			for(var key in fields) {
+				POST[key] = fields[key][0];
+			}
+			hwr();
 		});
 	}
 	else {
-		hwr({});
+		hwr();
 	}
 }).listen(process.env.PORT || 5000);
 

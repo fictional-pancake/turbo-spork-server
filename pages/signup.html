@@ -17,6 +17,7 @@ ${HEAD1}${HEAD2}
 			console.log(this.responseText);
 			if(this.responseText.indexOf("Created new") > -1) {
 				self.style.display = "none";
+				document.getElementById('error').style.display = "none";
 				document.getElementById('success').style.display = "inherit";
 			}
 			else {
