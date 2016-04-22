@@ -9,6 +9,7 @@
     "db-migrate": "^0.10.0-beta.11",
     "db-migrate-pg": "^0.1.9",
     "minimist": "^1.2.0",
+    "multiparty": "^4.1.2",
     "pg": "^4.4.4",
     "ws": "^1.0.1"
   },

@@ -5,6 +5,8 @@ var ws = require('ws');
 var http = require('http');
 var pg = require('pg');
 var bcrypt = require('bcrypt-nodejs');
+var fs = require('fs');
+var multiparty = require('multiparty');
 
 if(!process.env.DATABASE_URL) {
 	console.log("DATABASE_URL missing.  Please correct this.");
@@ -29,20 +31,14 @@ var password = {
 	}
 };
 
+var replacements = {
+	HEAD1: "<!DOCTYPE html><head>",
+	HEAD2: "</head><body><h1 style=\"text-align: center\">Turbo-Spork</h1>",
+	FOOTER: "</body></html>"
+};
+
 var handleWeb = function(req, res, POST) {
-	if (req.url == "/") {
-		res.writeHead(200, {"Content-type": "text/html"});
-		res.write("This is the Turbo-Spork website!  There's not much here, but you can <a href=\"/signup\">create an account</a>");
-		res.end();
-	} else if (req.url == "/signup") {
-		res.writeHead(200, {"Content-type": "text/html"});
-		res.write("<!DOCTYPE html><html><head><title>Sign up</title></head><body>");
-		res.write("<form method=\"POST\" action=\"signupaction\">Username: <input type\"text\" name=\"username\"/><br>");
-		res.write("Password: <input type=\"password\" name=\"password\"/><br>");
-		res.write("<input type=\"submit\" value=\"Submit\"/></form>");
-		res.write("</body></html>");
-		res.end();
-	} else if (req.url == "/signupaction") {
+	if (req.url == "/signupaction") {
 		if (POST.username && POST.password && POST.username.indexOf(":") == -1 && POST.password.indexOf(":") == -1) {
 			db.query("SELECT EXISTS(SELECT 1 FROM users WHERE name=$1)",  [POST.username], function(err, result) {
 				if (err) {
@@ -74,35 +70,46 @@ var handleWeb = function(req, res, POST) {
 			});
 		}
 		else {
+			console.log(POST);
 			res.write("Invalid request.  You must have a username and password that don't contain \":\".");
 			res.end();
 		}
 	} else {
-		res.writeHead(404, {"Content-type": "text/plain"});
-		res.write("404 rekt");
-		res.end();
+		var url = req.url;
+		if(url == "/") {
+			url = "/home";
+		}
+		fs.readFile(__dirname+"/pages"+url+".html", function(err, data) {
+			if(err) {
+				res.writeHead(404, {"Content-type": "text/plain"});
+				res.write("404 rekt");
+				res.end();
+			}
+			else {
+				data = ""+data;
+				for(var k in replacements) {
+					data = data.replace("${"+k+"}", replacements[k]);
+				}
+				res.writeHead(200, {"Content-type": "text/html"});
+				res.write(data);
+				res.end();
+			}
+		});
 	}
 };
 
 var webserve = http.createServer(function(req, res) {
-	var POST = {};
-	var hwr = handleWeb.bind(this, req, res, POST);
+	var hwr = handleWeb.bind(this, req, res);
 	console.log(req.url);
 	if (req.method == 'POST') {
 		console.log("it's POST");
-		req.on('data', function(data) {
-			console.log("DATA");
-			data = data.toString();
-			data = data.split('&');
-			for (var i = 0; i < data.length; i++) {
-				var _data = data[i].split("=");
-				POST[_data[0]] = _data[1];
-			}
+		var form = new multiparty.Form();
+		form.parse(req, function(err, fields, files) {
+			hwr(fields);
 		});
-		req.on('end', hwr);
 	}
 	else {
-		hwr();
+		hwr({});
 	}
 }).listen(process.env.PORT || 5000);
 
