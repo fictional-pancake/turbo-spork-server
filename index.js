@@ -42,25 +42,20 @@ var handleWeb = function(req, res, POST) {
 		if (POST.username && POST.password && POST.username.indexOf(":") == -1 && POST.password.indexOf(":") == -1) {
 			db.query("SELECT EXISTS(SELECT 1 FROM users WHERE name=$1)",  [POST.username], function(err, result) {
 				if (err) {
-					console.error("query is scrublord and didn't work", err);
 					res.write("query is scrublord");
 					res.end();
 				}
 				else if (result.rows[0].exists) {
-					console.log(result);
-					console.log("User already exists");
 					res.write("User already exists noob");
 					res.end();
 				}
 				else {
-					console.log("User does not already exist");
 					password.hash(POST.password, function(err, hash) {
 						db.query("INSERT INTO users (name, passhash) VALUES ($1, $2)", [POST.username, hash], function(err, result) {
 							if (err) {
 								console.error("query is scrublord and didn't work", err);
 								res.write("query is scrublord");
 							} else {
-								console.log("Created new user with username " + POST.username);
 								res.write("Created new user with username " + POST.username);
 							}
 							res.end();
@@ -102,7 +97,6 @@ var webserve = http.createServer(function(req, res) {
 	var hwr = handleWeb.bind(this, req, res, POST);
 	console.log(req.url);
 	if (req.method == 'POST') {
-		console.log("it's POST");
 		var form = new multiparty.Form();
 		form.parse(req, function(err, fields) {
 			for(var key in fields) {
@@ -131,7 +125,6 @@ var adjustForRemoved = function(gd, ind) {
 	var tr = ind;
 	if("data" in gd) {
 		var removed = gd.data.removed.slice().sort();
-		console.log(removed);
 		for(var i = 0; i < removed.length; i++) {
 			if(removed[i] <= tr) {
 				tr++;
@@ -513,15 +506,11 @@ var sync = function(gd) {
 		syncData.nodes.push(ta);
 	}
 	if("unitgroups" in gd.data) {
-		console.log(gd.data.unitgroups);
-		console.log(":)");
 		for(var i = 0; i < gd.data.unitgroups.length; i++) {
 			var group = gd.data.unitgroups[i];
-			console.log(group);
 			syncData.groups[group.id] = group.size;
 		}
 	}
-	console.log(syncData);
 	broadcast("sync:"+JSON.stringify(syncData), gd);
 };
 
@@ -684,7 +673,6 @@ sockserve.on('connection', function(conn) {
 		if(s.length == 4 && s[0] == "auth") {
 			// yes, it is
 			var version = parseInt(s[3]);
-			console.log("someone joining with version "+version);
 			if(version == PROTOCOL_VERSION || COMPATIBLE_VERSIONS.indexOf(version) > -1) {
 				db.query("SELECT * FROM users WHERE name=$1", [s[1]], function(err, result) {
 					if(err) {
