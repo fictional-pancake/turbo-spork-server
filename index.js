@@ -1,5 +1,5 @@
 var PROTOCOL_VERSION = 9;
-var COMPATIBLE_VERSIONS = [8, 7];
+var COMPATIBLE_VERSIONS = [8, 7, 6];
 
 var ws = require('ws');
 var http = require('http');
