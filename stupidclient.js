@@ -1,23 +1,33 @@
 var ws = require('ws');
+var parseArgs = require('minimist');
 
-var url = process.argv[5]?process.argv[5]:'ws://localhost:5000';
-console.log(url);
+var opts = parseArgs(process.argv, {
+	default: {
+		url: "ws://localhost:5000",
+		ai: false
+	},
+	alias: {
+		"u": "username",
+		"p": "password"
+	}
+});
+
 var ai = null;
-var s = new ws(url);
+var s = new ws(opts.url);
 s.onopen = function() {
-	s.send("auth:"+process.argv[2]+":"+process.argv[3]+":9");
+	s.send("auth:"+opts.username+":"+opts.password+":9");
 };
 var joined = false;
 var users;
 var maybeStart = function() {
-	if(users.length > 1 && users[0] == process.argv[2]) {
+	if(users.length > 1 && users[0] == opts.username) {
 		s.send("gamestart");
 	}
 };
 s.onmessage = function(d) {
 	console.log(d.data);
-	if(!joined || d.data == "leave:"+process.argv[2]) {
-		s.send("join:"+process.argv[4]);
+	if(!joined || d.data == "leave:"+opts.username) {
+		s.send("join:"+opts.room);
 		joined = true;
 		users = [];
 		ai = null;
@@ -37,7 +47,7 @@ s.onmessage = function(d) {
 		var sp = d.data.substring(7).split(",");
 		if(sp[1] == "owner") {
 			var id = parseInt(sp[0]);
-			if(sp[2] == users.indexOf(process.argv[2])) {
+			if(sp[2] == users.indexOf(opts.username)) {
 				ai.mynodes.push(id);
 			}
 			else {
@@ -48,8 +58,8 @@ s.onmessage = function(d) {
 			}
 		}
 	}
-	if(process.argv[6] && d.data.indexOf("gamestart") == 0) {
-		var pos = users.indexOf(process.argv[2]);
+	if(opts.ai && d.data.indexOf("gamestart") == 0) {
+		var pos = users.indexOf(opts.username);
 		var j = JSON.parse(d.data.substring(10));
 		ai = {
 			mynodes: [],
