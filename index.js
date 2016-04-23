@@ -270,13 +270,13 @@ var games = {};
 
 var commands = {
 	auth: {
-		handler: function(conn, d) {
-			conn.send("error:You're already authenticated");
+		handler: function(d) {
+			d.conn.send("error:You're already authenticated");
 		}
 	},
 	join: {
 		data: true,
-		handler: function(conn, d) {
+		handler: function(d) {
 			if(d.data == "matchme") {
 				var found = false;
 				for(var id in games) {
@@ -302,7 +302,7 @@ var commands = {
 			if(d.data in games) {
 				gd = games[d.data];
 				if("data" in gd) {
-					conn.send("error:Game already started.");
+					d.conn.send("error:Game already started.");
 					return;
 				}
 				broadcast("join:"+logins[d.user].name, gd);
@@ -314,13 +314,13 @@ var commands = {
 			gd.users.push(d.user);
 			for(var i = 0; i < gd.users.length; i++) {
 				var id = gd.users[i];
-				conn.send("join:"+logins[id].name);
+				d.conn.send("join:"+logins[id].name);
 			}
 		}
 	},
 	spectate: {
 		data: true,
-		handler: function(conn, d) {
+		handler: function(d) {
 			if(d.data in games) {
 				removeUserFromGames(d.user);
 				var gd = games[d.data];
@@ -329,56 +329,56 @@ var commands = {
 				}
 				gd.spectators.push(d.user);
 				for(var i = 0; i < gd.users.length; i++) {
-					conn.send("join:"+logins[gd.users[i]].name);
+					d.conn.send("join:"+logins[gd.users[i]].name);
 				}
 				if("data" in gd) {
-					conn.send("gamestart:"+JSON.stringify({nodes: gd.data.nodes}));
+					d.conn.send("gamestart:"+JSON.stringify({nodes: gd.data.nodes}));
 					sync(gd);
 				}
 			}
 			else {
-				conn.send("error:Nobody's there.  You can't spectate them.");
+				d.conn.send("error:Nobody's there.  You can't spectate them.");
 			}
 		}
 	},
 	leave: {
 		data: false,
-		handler: function(conn, d) {
+		handler: function(d) {
 			removeUserFromGames(d.user);
 		}
 	},
 	gamestart: {
 		data: false,
-		handler: function(conn, d) {
+		handler: function(d) {
 			for(var id in games) {
 				var gd = games[id];
 				var ind = gd.users.indexOf(d.user);
 				if(ind>-1) {
 					if(ind == 0 && id.indexOf("matchme") != 0) {
 						if("data" in gd) {
-							conn.send("error:Game already started.");
+							d.conn.send("error:Game already started.");
 						}
 						else {
 							if(gd.users.length > 1) {
 								startGame(id);
 							}
 							else {
-								conn.send("error:You need at least two players");
+								d.conn.send("error:You need at least two players");
 							}
 						}
 					}
 					else {
-						conn.send("error:You aren't the game leader.");
+						d.conn.send("error:You aren't the game leader.");
 					}
 					return;
 				}
 			}
-			conn.send("error:You aren't in a room.");
+			d.conn.send("error:You aren't in a room.");
 		}
 	},
 	attack: {
 		data: true,
-		handler: function(conn, d) {
+		handler: function(d) {
 			var s = d.data.split(",");
 			if(s.length == 2) {
 				var src = parseInt(s[0]);
@@ -409,23 +409,23 @@ var commands = {
 									gd.data.unitgroups.push(group);
 								}
 								else {
-									conn.send("error:You don't own that node.");
+									d.conn.send("error:You don't own that node.");
 								}
 							}
 							else {
-								conn.send("error:That node doesn't exist.");
+								d.conn.send("error:That node doesn't exist.");
 							}
 						}
 						else {
-							conn.send("error:Game not started");
+							d.conn.send("error:Game not started");
 						}
 						return;
 					}
 				}
-				conn.send("error:You aren't in a room.");
+				d.conn.send("error:You aren't in a room.");
 			}
 			else {
-				conn.send("error:Invalid attack");
+				d.conn.send("error:Invalid attack");
 			}
 		}
 	},
@@ -435,7 +435,7 @@ var commands = {
 	},
 	chat: {
 		data: true,
-		handler: function(conn, d) {
+		handler: function(d) {
 			for(var id in games) {
 				var gd = games[id];
 				var ind = gd.users.indexOf(d.user);
@@ -444,7 +444,7 @@ var commands = {
 					return;
 				}
 			}
-			conn.send("error:You're not in a room.");
+			d.conn.send("error:You're not in a room.");
 		}
 	}
 };
@@ -475,9 +475,10 @@ var handleMessage = function(user, message) {
 			conn.send("error:That command doesn't require data");
 		}
 		else {
-			info.handler(conn, {
+			info.handler({
 				data: data,
-				user: user
+				user: user,
+				conn: conn
 			});
 		}
 	}
