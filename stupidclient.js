@@ -15,7 +15,7 @@ var opts = parseArgs(process.argv, {
 var ai = null;
 var s = new ws(opts.url);
 s.onopen = function() {
-	s.send("auth:"+opts.username+":"+opts.password+":9");
+	s.send("auth:"+opts.username+":"+opts.password+":8");
 };
 var joined = false;
 var users;

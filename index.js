@@ -524,8 +524,8 @@ var tick = function() {
 		if("data" in gd) {
 			var groupsUncontested = true;
 			var unitsUncontested = true;
-			var lastOwner = gd.data.unitgroups[0].owner;
 			if("unitgroups" in gd.data) {
+				var lastOwner = gd.data.unitgroups[0].owner;
 				var groups = gd.data.unitgroups;
 				for(var i = 0; i < groups.length; i++) {
 					var group = groups[i];
@@ -546,15 +546,20 @@ var tick = function() {
 					}
 				}
 			}
+			var nodeWinner = -1;
 			for(var i = 0; i < gd.data.nodes.length; i++) {
 				var node = gd.data.nodes[i];
+				if(!("units" in node)) {
+					node.units = {};
+				}
+				if(nodeWinner == node.owner || node.owner == -1) {
+					if(nodeWinner == -1) nodeWinner = node.owner;
+				}
+				else unitsUncontested = false;
 				for(var owner in node.units) {
 					if(owner != node.owner && node.units[owner] > 0) {
 						unitsUncontested = false;
 					}
-				}
-				if(!("units" in node)) {
-					node.units = {};
 				}
 				if(node.owner != -1) {
 					if(!(node.owner in node.units)) {
@@ -620,8 +625,8 @@ var tick = function() {
 			}
 			// if the same person controls all unit groups and nodes, they win
 			if(groupsUncontested && unitsUncontested) {
-				if(gd.data.unitgroups[0].owner == gd.data.nodes[0].owner) {
-					handleWin(id, gd.data.unitgroups[0].owner);
+				if(!("unitgroups" in gd.data) || gd.data.unitgroups[0].owner == gd.data.nodes[0].owner) {
+					handleWin(id, nodeWinner);
 				}
 			}
 			if("data" in gd && (!("lastSync" in gd) || time-gd.lastSync > 5000)) {
