@@ -454,7 +454,9 @@ var handleMessage = function(user, message) {
 		console.log("User sent a message after leaving?");
 		return;
 	}
-	console.log(user+": "+message);
+	if(message !== "keepalive") {
+		console.log(user+": "+message);
+	}
 	var conn = logins[user].conn;
 	var cmd;
 	var data = null;
