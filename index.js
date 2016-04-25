@@ -1,5 +1,5 @@
-var PROTOCOL_VERSION = 9;
-var COMPATIBLE_VERSIONS = [8, 7, 6];
+var PROTOCOL_VERSION = 10;
+var COMPATIBLE_VERSIONS = [9, 8, 7, 6];
 
 var ws = require('ws');
 var http = require('http');
@@ -39,7 +39,19 @@ var replacements = {
 
 var handleWeb = function(req, res, POST) {
 	if (req.url == "/signupaction") {
-		if (POST.username && POST.password && POST.username.indexOf(":") == -1 && POST.password.indexOf(":") == -1) {
+		if (!POST.username || !POST.password) {
+			res.write("You must have a username and password");
+			res.end();
+		}
+		else if(POST.username.indexOf(":") > -1 || POST.password.indexOf(":") > -1) {
+			res.write("Your username and password cannot contain \":\".");
+			res.end();
+		}
+		else if(POST.username.indexOf("guest") == 0) {
+			res.write("Usernames starting with \"guest\" are reserved for guests.");
+			res.end();
+		}
+		else {
 			db.query("SELECT EXISTS(SELECT 1 FROM users WHERE name=$1)",  [POST.username], function(err, result) {
 				if (err) {
 					res.write("query is scrublord");
@@ -63,10 +75,6 @@ var handleWeb = function(req, res, POST) {
 					});
 				}
 			});
-		}
-		else {
-			res.write("Invalid request.  You must have a username and password that don't contain \":\".");
-			res.end();
 		}
 	} else {
 		var url = req.url;
@@ -669,6 +677,19 @@ var handleLostConnection = function(user) {
 	}
 };
 
+var handleLogin = function(conn, id, version) {
+	console.log(id+" logged in!");
+	if(id in logins) {
+		var tconn = logins[id].conn;
+		tconn.send("error:You logged in from another location");
+		tconn.close();
+	}
+	logins[id] = {conn: conn, name: id, version: version};
+	conn.send("join:"+logins[id].name);
+	conn.on("message", handleMessage.bind(conn, id));
+	conn.on("close", handleLostConnection.bind(conn, id));
+};
+
 var sockserve = new ws.Server({server: webserve});
 sockserve.on('connection', function(conn) {
 	var func = function(message) {
@@ -676,46 +697,49 @@ sockserve.on('connection', function(conn) {
 		// it should be an auth message
 		conn.removeListener("message", func);
 		var s = message.split(":");
-		if(s.length == 4 && s[0] == "auth") {
+		if((s.length == 4 || s.length == 2) && s[0] == "auth") {
 			// yes, it is
-			var version = parseInt(s[3]);
+			var version = parseInt(s.length==2?s[1]:s[3]);
 			if(version == PROTOCOL_VERSION || COMPATIBLE_VERSIONS.indexOf(version) > -1) {
-				db.query("SELECT * FROM users WHERE name=$1", [s[1]], function(err, result) {
-					if(err) {
-						console.error("QUERY IS SCRUBLORD", err);
-						conn.send("error:query is scrublord");
-						conn.close();
-					}
-					else if(result.rows.length == 1) {
-						password.verify(s[2], result.rows[0].passhash, function(x, data) {
-							if(!x && data) {
-								var id = s[1];
-								console.log(id+" logged in!");
-								if(id in logins) {
-									var tconn = logins[id].conn;
-									tconn.send("error:You logged in from another location");
-									tconn.close();
-								}
-								logins[id] = {conn: conn, name: id, version: version};
-								conn.send("join:"+s[1]);
-								conn.on("message", handleMessage.bind(conn, id));
-								conn.on("close", handleLostConnection.bind(conn, id));
-							}
-							else {
-								conn.send("error:Incorrect password");
-								conn.close();
-							}
-						});
-					}
-					else {
-						try {
-							conn.send("error:Incorrect login");
-							conn.close();
-						} catch(e) {
-							console.error(e);
+				if(s.length == 2) {
+					// guest login
+					var id;
+					while(true) {
+						id = "guest"+(Math.random()+"").substring(2);
+						if(!(id in logins)) {
+							break;
 						}
 					}
-				});
+					handleLogin(conn, id, version);
+				}
+				else {
+					db.query("SELECT * FROM users WHERE name=$1", [s[1]], function(err, result) {
+						if(err) {
+							console.error("QUERY IS SCRUBLORD", err);
+							conn.send("error:query is scrublord");
+							conn.close();
+						}
+						else if(result.rows.length == 1) {
+							password.verify(s[2], result.rows[0].passhash, function(x, data) {
+								if(!x && data) {
+									handleLogin(conn, s[1], version);
+								}
+								else {
+									conn.send("error:Incorrect password");
+									conn.close();
+								}
+							});
+						}
+						else {
+							try {
+								conn.send("error:Incorrect login");
+								conn.close();
+							} catch(e) {
+								console.error(e);
+							}
+						}
+					});
+				}
 			}
 			else {
 				if(version > PROTOCOL_VERSION) {

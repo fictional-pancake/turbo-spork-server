@@ -1,3 +1,5 @@
+var PROTOCOL_VERSION = 10;
+
 var ws = require('ws');
 var parseArgs = require('minimist');
 
@@ -15,7 +17,12 @@ var opts = parseArgs(process.argv, {
 var ai = null;
 var s = new ws(opts.url);
 s.onopen = function() {
-	s.send("auth:"+opts.username+":"+opts.password+":8");
+	if("username" in opts) {
+		s.send("auth:"+opts.username+":"+opts.password+":"+PROTOCOL_VERSION);
+	}
+	else {
+		s.send("auth:"+PROTOCOL_VERSION);
+	}
 };
 var joined = false;
 var users;
