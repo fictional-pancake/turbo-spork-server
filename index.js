@@ -9,15 +9,15 @@ var fs = require('fs');
 var multiparty = require('multiparty');
 
 if(!process.env.DATABASE_URL) {
-	console.log("DATABASE_URL missing.  Please correct this.");
+	console.error("DATABASE_URL missing.  Please correct this.");
 	process.exit();
 }
 
 var db = new pg.Client(process.env.DATABASE_URL);
 db.connect(function(err) {
 	if(err) {
-		console.log("Error connecting to database");
-		console.log(err);
+		console.error("Error connecting to database");
+		console.error(err);
 		process.exit();
 	}
 });
@@ -526,9 +526,9 @@ var tick = function() {
 		if("data" in gd) {
 			var groupsUncontested = true;
 			var unitsUncontested = true;
-			if("unitgroups" in gd.data) {
-				var lastOwner = gd.data.unitgroups[0].owner;
+			if("unitgroups" in gd.data && gd.data.unitgroups.length > 0) {
 				var groups = gd.data.unitgroups;
+				var lastOwner = groups[0].owner;
 				for(var i = 0; i < groups.length; i++) {
 					var group = groups[i];
 					// check if any groups have a different owner
@@ -554,10 +554,14 @@ var tick = function() {
 				if(!("units" in node)) {
 					node.units = {};
 				}
-				if(nodeWinner == node.owner || node.owner == -1) {
-					if(nodeWinner == -1) nodeWinner = node.owner;
+				if(nodeWinner == node.owner || node.owner == -1 || nodeWinner == -1) {
+					if(node.owner != -1) {
+						nodeWinner = node.owner;
+					}
 				}
-				else unitsUncontested = false;
+				else {
+					unitsUncontested = false;
+				}
 				for(var owner in node.units) {
 					if(owner != node.owner && node.units[owner] > 0) {
 						unitsUncontested = false;
@@ -627,7 +631,7 @@ var tick = function() {
 			}
 			// if the same person controls all unit groups and nodes, they win
 			if(groupsUncontested && unitsUncontested) {
-				if(!("unitgroups" in gd.data) || gd.data.unitgroups[0].owner == gd.data.nodes[0].owner) {
+				if(!("unitgroups" in gd.data && gd.data.unitgroups.length > 0) || gd.data.unitgroups[0].owner == nodeWinner) {
 					handleWin(id, nodeWinner);
 				}
 			}
