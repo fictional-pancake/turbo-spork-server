@@ -130,6 +130,15 @@ var broadcast = function(msg, gd, minVersion) {
 	}
 };
 
+var getRoom = function(user) {
+	for(var id in games) {
+		var gd = games[id];
+		if(gd.users.indexOf(user) > -1 || ("spectators" in gd && gd.spectators.indexOf(user) > -1)) {
+			return id;
+		}
+	}
+};
+
 var handleWin = function(id, owner) {
 	var gd = games[id];
 	broadcast("win:"+logins[gd.users[owner]].name, gd);
@@ -444,15 +453,13 @@ var commands = {
 	chat: {
 		data: true,
 		handler: function(d) {
-			for(var id in games) {
-				var gd = games[id];
-				var ind = gd.users.indexOf(d.user);
-				if(ind > -1) {
-					broadcast("chat:"+logins[d.user].name+":"+d.data, gd, 9);
-					return;
-				}
+			var room = getRoom(d.user);
+			if(room) {
+				broadcast("chat:"+logins[d.user].name+":"+d.data, games[room], 9);
 			}
-			d.conn.send("error:You're not in a room.");
+			else {
+				d.conn.send("error:You're not in a room.");
+			}
 		}
 	}
 };
