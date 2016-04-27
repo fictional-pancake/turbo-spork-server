@@ -1,155 +1,88 @@
 var PROTOCOL_VERSION = require('../index').PROTOCOL_VERSION;
-var assert = require('assert');
 var ws = require('ws');
-var http = require('http');
-var querystring = require('querystring');
-var async = require('async');
+var wstest = require('wstest');
 var FormData = require('form-data');
+var async = require('async');
 
 var PORT = process.env.PORT || 5000;
 var USERNAME = "testuser"+(Math.random()+"").substring(2);
 var USERNAME2 = "testuser"+(Math.random()+"").substring(2);
 var PASSWORD = "thisisapassword";
+var MESSAGE = "This is test message";
 var ROOM = "test";
 
-var callbackManager = {
-	callbacks: {},
-	register: function(id, callback) {
-		if(id in this.callbacks) {
-			if("value" in this.callbacks[id]) {
-				callback(null, this.callbacks[id].value);
-			}
-		}
-		else {
-			this.callbacks[id] = {callbacks: []};
-		}
-		this.callbacks[id].callbacks.push(callback);
-	},
-	complete: function(id, value) {
-		if(!(id in this.callbacks)) {
-			this.callbacks[id] = {callbacks: []};
-		}
-		var cd = this.callbacks[id];
-		for(var i = 0; i < cd.callbacks.length; i++) {
-			cd.callbacks[i](null, value);
-		}
-		cd.value = value;
-	},
-	action: function(id) {
-		return function(callback) {
-			callbackManager.register(id, callback);
-		};
-	}
-};
-
-// test creating a user
 var createUser = function(user, pass, callback) {
-	/*var postdata = querystring.stringify({
-		"username": user,
-		"password": pass
-	});
-	var req = http.request({
-		port: PORT,
-		path: "/signupaction",
-		method: "POST",
-		headers: {
-			"Content-Type": "application/x-www-form-urlencoded",
-			"Content-Length": postdata.length
-		}
-	});
-	req.write(postdata);
-	req.end();*/
 	var fd = new FormData();
 	fd.append("username", user);
 	fd.append("password", pass);
 	fd.submit("http://localhost:"+PORT+"/signupaction", callback);
 };
-async.parallel([
-	function(callback) {
-		createUser(USERNAME, PASSWORD, callback);
-	},
-	function(callback) {
-		createUser(USERNAME2, PASSWORD, callback);
-	}
-], function() {
-	var state = 0;
 
-	var wsurl = 'ws://localhost:'+PORT;
-	var s = new ws(wsurl);
-	var s2 = new ws(wsurl);
+var ignored = function(msg) {
+	return msg.indexOf("sync") == 0;
+};
+
+async.parallel([
+	createUser.bind(null, USERNAME, PASSWORD),
+	createUser.bind(null, USERNAME2, PASSWORD)
+], function() {
+	var wsurl = "ws://localhost:"+PORT;
+	var s = new wstest(new ws(wsurl));
+	s.logMessages = true;
+	s.ignored = ignored;
+	var s2 = new wstest(new ws(wsurl));
+	s2.ignored = ignored;
 	async.parallel([
-		function(callback) {
-			s.onopen = function() {
-				callback(null, s);
-			};
-		},
-		function(callback) {
-			s2.onopen = function() {
-				callback(null, s2);
-			};
-		}
+		s.waitForOpen.bind(s),
+		s2.waitForOpen.bind(s2)
 	], function() {
-		s.send("auth:"+USERNAME+":"+PASSWORD+":"+PROTOCOL_VERSION);
+		s.get().send("auth:"+USERNAME+":"+PASSWORD+":"+PROTOCOL_VERSION);
+		s.waitForMessage("join:"+USERNAME, function() {
+			// s is authenticated
+			s.get().send("join:"+ROOM);
+			s2.get().send("auth:"+USERNAME2+":"+PASSWORD+":"+PROTOCOL_VERSION);
+			async.parallel([
+				s.waitForMessage.bind(s, "join:"+USERNAME),
+				s2.waitForMessage.bind(s2, "join:"+USERNAME2)
+			], function() {
+				// s is in the room, s2 is authenticated
+				s2.get().send("join:"+ROOM);
+				async.parallel([
+					s.waitForMessage.bind(s, "join:"+USERNAME2),
+					s2.waitForMessage.bind(s2, "join:"+USERNAME)
+				], function() {
+					s2.waitForMessage("join:"+USERNAME2, function() {
+						// both are in the room
+						s.get().send("gamestart");
+						async.parallel([
+							s.waitForMessage.bind(s),
+							s2.waitForMessage.bind(s2)
+						], function() {
+							s.get().send("chat:"+MESSAGE);
+							async.parallel([
+								s.waitForMessage.bind(s, "chat:"+USERNAME+":"+MESSAGE),
+								s.waitForMessage.bind(s2, "chat:"+USERNAME+":"+MESSAGE)
+							], function() {
+								// first chat
+								s2.get().send("chat:"+MESSAGE);
+								async.parallel([
+									s.waitForMessage.bind(s, "chat:"+USERNAME2+":"+MESSAGE),
+									s2.waitForMessage.bind(s2, "chat:"+USERNAME2+":"+MESSAGE)
+								], function() {
+									s.get().close();
+									async.series([
+										s2.waitForMessage.bind(s2, "leave:"+USERNAME),
+										s2.waitForMessage.bind(s2, "win:"+USERNAME2)
+									], function() {
+										console.log("SUCCESS");
+										process.exit(0);
+									});
+								});
+							});
+						});
+					});
+				});
+			});
+		});
 	});
-	async.parallel([
-		callbackManager.action("1got2"),
-		callbackManager.action("2got1"),
-		callbackManager.action("2got2")
-	], function() {
-		state++;
-		s.send("gamestart");
-	});
-	async.parallel([
-		callbackManager.action("start1"),
-		callbackManager.action("start2")
-	], function(err, res) {
-		assert.equal(res[0], res[1]);
-		state++;
-		console.log("SUCCESS");
-		process.exit(0);
-	});
-	s.onmessage = function(d) {
-		console.log("MESSAGE to s: "+d.data);
-		var msg = d.data;
-		if(state == 0 || state == 1) {
-			assert.equal(msg, "join:"+USERNAME);
-			state++;
-			if(state == 1) {
-				s.send("join:"+ROOM);
-			}
-			else if(state == 2) {
-				s2.send("auth:"+USERNAME2+":"+PASSWORD+":"+PROTOCOL_VERSION);
-			}
-		}
-		else if(state == 3) {
-			assert.equal(msg, "join:"+USERNAME2);
-			callbackManager.complete("1got2", true);
-		}
-		else if(state == 4) {
-			callbackManager.complete("start1", msg);
-		}
-	};
-	s2.onmessage = function(d) {
-		console.log("MESSAGE to s2: "+d.data);
-		var msg = d.data;
-		if(state == 2) {
-			assert.equal(msg, "join:"+USERNAME2);
-			state++;
-			s2.send("join:"+ROOM);
-		}
-		else if(state == 3) {
-			if(msg == "join:"+USERNAME) {
-				callbackManager.complete("2got1", true);
-			}
-			else if(msg == "join:"+USERNAME2) {
-				callbackManager.complete("2got2", true);
-			}
-			else {
-				assert.fail(msg, "join:[some possible username]", false, "!=");
-			}
-		}
-		else if(state == 4) {
-			callbackManager.complete("start2", msg);
-		}
-	};
 });
