@@ -1,5 +1,5 @@
-var PROTOCOL_VERSION = 10;
-var COMPATIBLE_VERSIONS = [9, 8, 7, 6];
+var PROTOCOL_VERSION = 11;
+var COMPATIBLE_VERSIONS = [];
 
 var ws = require('ws');
 var http = require('http');
@@ -200,7 +200,8 @@ var GAMERULES = {
 	ATTEMPTS_TO_PLACE_NODES: 5,
 	CHANCE_TO_KILL: 0.0001,
 	TRANSFORM_TIME: 2000,
-	MATCH_WAIT_TIME: 10000
+	MATCH_WAIT_TIME: 10000,
+	GAME_START_DELAY: 2125
 };
 
 var applyDefault = function(shown, def) {
@@ -274,7 +275,14 @@ var startGame = function(name) {
 		nodes.push(createNode({}, nodes));
 	}
 	games[name].data = {nodes: nodes, removed: []};
-	broadcast("gamestart:"+JSON.stringify(games[name].data), games[name]);
+	broadcast("gameinfo:"+JSON.stringify(games[name].data), games[name]);
+	setTimeout(function() {
+		// make sure that game still exists before starting it
+		if (name in games) {
+			broadcast("gamestart", games[name]);
+			games[name].data.gameStarted = true;
+		}
+	}, GAMERULES.GAME_START_DELAY);
 };
 
 var lastGroupID = 0;
@@ -404,7 +412,7 @@ var commands = {
 					var gd = games[id];
 					var ind = gd.users.indexOf(d.user);
 					if(ind>-1) {
-						if("data" in gd) {
+						if("data" in gd && gd.data.gameStarted) {
 							var owner = adjustForRemoved(gd, ind);
 							if(src >= 0 && src < gd.data.nodes.length && dst >= 0 && dst < gd.data.nodes.length) {
 								if(owner == gd.data.nodes[src].owner || gd.data.nodes[src].units[owner] > 0) {
