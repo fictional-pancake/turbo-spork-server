@@ -7,6 +7,7 @@ var pg = require('pg');
 var bcrypt = require('bcrypt-nodejs');
 var fs = require('fs');
 var multiparty = require('multiparty');
+var mime = require('mime');
 
 if(!process.env.DATABASE_URL) {
 	console.error("DATABASE_URL missing.  Please correct this.");
@@ -83,14 +84,27 @@ var handleWeb = function(req, res, POST) {
 		}
 		fs.readFile(__dirname+"/pages"+url+".html", function(err, data) {
 			if(err) {
-				res.writeHead(404, {"Content-type": "text/plain"});
-				res.write("404 rekt");
-				res.end();
+				fs.readFile(__dirname+"/pages"+url, function(err, data) {
+					if(err) {
+						res.writeHead(404, {"Content-type": "text/plain"});
+						res.write("404 rekt");
+						res.end();
+					}
+					else {
+						res.writeHead(200, {"Content-type": mime.lookup(url)});
+						res.write(data);
+						res.end();
+					}
+				});
 			}
 			else {
 				data = ""+data;
 				for(var k in replacements) {
 					data = data.replace("${"+k+"}", replacements[k]);
+				}
+				for(var k in GAMERULES) {
+					data = data.replace("$["+k+"]", GAMERULES[k]);
+					data = data.replace("$["+k+"/]", GAMERULES[k]/1000);
 				}
 				res.writeHead(200, {"Content-type": "text/html"});
 				res.write(data);
