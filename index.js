@@ -77,6 +77,10 @@ var handleWeb = function(req, res, POST) {
 				}
 			});
 		}
+	} else if(req.url == "/version") {
+	       res.writeHead(200, {"Content-type": "text/plain"});
+	       res.write(""+PROTOCOL_VERSION);
+	       res.end();
 	} else {
 		var url = req.url;
 		if(url == "/") {
