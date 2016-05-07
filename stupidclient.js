@@ -23,6 +23,9 @@ s.onopen = function() {
 	else {
 		s.send("auth:"+PROTOCOL_VERSION);
 	}
+	setInterval(function() {
+		s.send("keepalive");
+	}, 10000);
 };
 var joined = false;
 var users;
@@ -65,9 +68,9 @@ s.onmessage = function(d) {
 			}
 		}
 	}
-	if(opts.ai && d.data.indexOf("gamedata") == 0) {
+	if(opts.ai && d.data.indexOf("gameinfo") == 0) {
 		var pos = users.indexOf(opts.username);
-		var j = JSON.parse(d.data.substring(10));
+		var j = JSON.parse(d.data.substring(9));
 		ai = {
 			mynodes: [],
 			nodecount: j.nodes.length
@@ -78,7 +81,7 @@ s.onmessage = function(d) {
 			}
 		}
 	}
-	else if(opts.ai && d.data == "gamestart") {
+	else if(ai && d.data == "gamestart") {
 		ai.active = true;
 	}
 };
