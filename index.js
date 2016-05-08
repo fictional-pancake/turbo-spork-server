@@ -1,5 +1,5 @@
-var PROTOCOL_VERSION = 11;
-var COMPATIBLE_VERSIONS = [];
+var PROTOCOL_VERSION = 12;
+var COMPATIBLE_VERSIONS = [11];
 
 var ws = require('ws');
 var http = require('http');
