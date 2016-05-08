@@ -10,6 +10,7 @@ var defaults = {
 };
 
 var runBot = function(opts) {
+	var kaint, mint;
 	for(var k in defaults) {
 		if(!(k in opts)) {
 			opts[k] = defaults[k];
@@ -24,7 +25,7 @@ var runBot = function(opts) {
 		else {
 			s.send("auth:"+PROTOCOL_VERSION);
 		}
-		setInterval(function() {
+		kaint = setInterval(function() {
 			s.send("keepalive");
 		}, 10000);
 	};
@@ -35,9 +36,16 @@ var runBot = function(opts) {
 			s.send("gamestart");
 		}
 	};
+	var endGame = function() {
+		clearInterval(kaint);
+		clearInterval(mint);
+		s.close();
+		console.log("ending");
+	};
 	s.onmessage = function(d) {
 		if(opts.log) {console.log(d.data);}
-		if(!joined || d.data == "leave:"+opts.username) {
+		var ileft = d.data == "leave:"+opts.username;
+		if(!joined || (ileft && opts.rejoin)) {
 			s.send("join:"+opts.room);
 			joined = true;
 			users = [];
@@ -49,6 +57,9 @@ var runBot = function(opts) {
 		}
 		else if(d.data.indexOf("leave") == 0) {
 			users.splice(users.indexOf(d.data.substring(6)),1);
+			if(ileft && !opts.rejoin) {
+				endGame();
+			}
 		}
 		else if(d.data.indexOf("win") == 0) {
 			ai = null;
@@ -88,11 +99,9 @@ var runBot = function(opts) {
 	};
 	s.onclose = function() {
 		if(opts.log) {console.log("Lost connection");}
-		if(require.main === module) {
-			process.exit();
-		}
+		endGame();
 	};
-	setInterval(function(){
+	var mint = setInterval(function(){
 		if(ai && ai.active) {
 			if(opts.log) {console.log(ai.mynodes);}
 			s.send("attack:"+ai.mynodes[Math.floor(Math.random()*ai.mynodes.length)]+","+Math.floor(Math.random()*ai.nodecount));
