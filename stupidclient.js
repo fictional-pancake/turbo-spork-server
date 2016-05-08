@@ -36,7 +36,7 @@ var runBot = function(opts) {
 		}
 	};
 	s.onmessage = function(d) {
-		if(opts.log) console.log(d.data);
+		if(opts.log) {console.log(d.data);}
 		if(!joined || d.data == "leave:"+opts.username) {
 			s.send("join:"+opts.room);
 			joined = true;
@@ -87,14 +87,14 @@ var runBot = function(opts) {
 		}
 	};
 	s.onclose = function() {
-		if(opts.log) console.log("Lost connection");
+		if(opts.log) {console.log("Lost connection");}
 		if(require.main === module) {
 			process.exit();
 		}
 	};
 	setInterval(function(){
 		if(ai && ai.active) {
-			if(opts.log) console.log(ai.mynodes);
+			if(opts.log) {console.log(ai.mynodes);}
 			s.send("attack:"+ai.mynodes[Math.floor(Math.random()*ai.mynodes.length)]+","+Math.floor(Math.random()*ai.nodecount));
 		}
 	},1000);
