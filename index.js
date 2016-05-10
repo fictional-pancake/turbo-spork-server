@@ -39,7 +39,7 @@ var replacements = {
 };
 
 var handleWeb = function(req, res, POST) {
-	if (req.url == "/signupaction") {
+	if (req.url === "/signupaction") {
 		if (!POST.username || !POST.password) {
 			res.write("You must have a username and password");
 			res.end();
@@ -48,7 +48,7 @@ var handleWeb = function(req, res, POST) {
 			res.write("Your username and password cannot contain \":\".");
 			res.end();
 		}
-		else if(POST.username.indexOf("guest") == 0) {
+		else if(POST.username.indexOf("guest") === 0) {
 			res.write("Usernames starting with \"guest\" are reserved for guests.");
 			res.end();
 		}
@@ -77,13 +77,13 @@ var handleWeb = function(req, res, POST) {
 				}
 			});
 		}
-	} else if(req.url == "/version") {
+	} else if(req.url === "/version") {
 	       res.writeHead(200, {"Content-type": "text/plain"});
 	       res.write(""+PROTOCOL_VERSION);
 	       res.end();
 	} else {
 		var url = req.url;
-		if(url == "/") {
+		if(url === "/") {
 			url = "/home";
 		}
 		fs.readFile(__dirname+"/pages"+url+".html", function(err, data) {
@@ -122,7 +122,7 @@ var webserve = http.createServer(function(req, res) {
 	var POST = {};
 	var hwr = handleWeb.bind(this, req, res, POST);
 	console.log(req.url);
-	if (req.method == 'POST') {
+	if (req.method === 'POST') {
 		var form = new multiparty.Form();
 		form.parse(req, function(err, fields) {
 			for(var key in fields) {
@@ -161,7 +161,7 @@ var handleWin = function(id, owner) {
 	var gd = games[id];
 	broadcast("win:"+logins[gd.users[owner]].name, gd);
 	delete gd.data;
-	if(id.indexOf("matchme") == 0) {
+	if(id.indexOf("matchme") === 0) {
 		while(gd.users.length > 0) {
 			removeUserFromGames(gd.users[0]);
 		}
@@ -189,7 +189,7 @@ var removeUserFromGames = function(user, died) {
 				logins[user].conn.send("leave:"+logins[user].name);
 			}
 			games[id].users.splice(ind,1);
-			var win = games[id].users.length == 1 && ("data" in games[id]);
+			var win = games[id].users.length === 1 && ("data" in games[id]);
 			broadcast("leave:"+logins[user].name, games[id]);
 			if(win) {
 				handleWin(id, 0);
@@ -223,7 +223,7 @@ var GAMERULES = {
 };
 
 var applyDefault = function(shown, def) {
-	if(shown !== undefined) {
+	if(shown != null) {
 		return shown;
 	}
 	else {
@@ -236,10 +236,10 @@ var applyDefaultToMap = function(target, source, name, def) {
 };
 
 var distance = function() {
-	if(arguments.length == 2) {
+	if(arguments.length === 2) {
 		return distance(arguments[0].x, arguments[0].y, arguments[1].x, arguments[1].y);
 	}
-	else if(arguments.length == 4) {
+	else if(arguments.length === 4) {
 		return Math.sqrt(Math.pow(arguments[1]-arguments[3], 2)+Math.pow(arguments[0]-arguments[2], 2));
 	}
 	else {
@@ -320,10 +320,10 @@ var commands = {
 	join: {
 		data: true,
 		handler: function(d) {
-			if(d.data == "matchme") {
+			if(d.data === "matchme") {
 				var found = false;
 				for(var id in games) {
-					if(id.indexOf("matchme") == 0 && !("data" in games[id])) {
+					if(id.indexOf("matchme") === 0 && !("data" in games[id])) {
 						found = true;
 						d.data = id;
 					}
@@ -397,7 +397,7 @@ var commands = {
 				var gd = games[id];
 				var ind = gd.users.indexOf(d.user);
 				if(ind>-1) {
-					if(ind == 0 && id.indexOf("matchme") != 0) {
+					if(ind === 0 && id.indexOf("matchme") != 0) {
 						if("data" in gd) {
 							d.conn.send("error:Game already started.");
 						}
@@ -423,7 +423,7 @@ var commands = {
 		data: true,
 		handler: function(d) {
 			var s = d.data.split(",");
-			if(s.length == 2) {
+			if(s.length === 2) {
 				var src = parseInt(s[0]);
 				var dst = parseInt(s[1]);
 				for(var id in games) {
@@ -433,7 +433,7 @@ var commands = {
 						if("data" in gd && gd.data.gameStarted) {
 							var owner = adjustForRemoved(gd, ind);
 							if(src >= 0 && src < gd.data.nodes.length && dst >= 0 && dst < gd.data.nodes.length) {
-								if(owner == gd.data.nodes[src].owner || gd.data.nodes[src].units[owner] > 0) {
+								if(owner === gd.data.nodes[src].owner || gd.data.nodes[src].units[owner] > 0) {
 									var size = Math.floor(gd.data.nodes[src].units[owner]);
 									gd.data.nodes[src].units[ind] -= size;
 									var group = {
@@ -595,7 +595,7 @@ var tick = function() {
 				if(!("units" in node)) {
 					node.units = {};
 				}
-				if(nodeWinner == node.owner || node.owner == -1 || nodeWinner == -1) {
+				if(nodeWinner === node.owner || node.owner === -1 || nodeWinner === -1) {
 					if(node.owner != -1) {
 						nodeWinner = node.owner;
 					}
@@ -639,7 +639,7 @@ var tick = function() {
 				var rightfulOwner = -1;
 				for(var u in node.units) {
 					if(node.units[u] > 0) {
-						if(rightfulOwner == -1) {
+						if(rightfulOwner === -1) {
 							rightfulOwner = u;
 						}
 						else {
@@ -672,7 +672,7 @@ var tick = function() {
 			}
 			// if the same person controls all unit groups and nodes, they win
 			if(groupsUncontested && unitsUncontested) {
-				if(!("unitgroups" in gd.data && gd.data.unitgroups.length > 0) || gd.data.unitgroups[0].owner == nodeWinner) {
+				if(!("unitgroups" in gd.data && gd.data.unitgroups.length > 0) || gd.data.unitgroups[0].owner === nodeWinner) {
 					handleWin(id, nodeWinner);
 				}
 			}
@@ -681,7 +681,7 @@ var tick = function() {
 			}
 		}
 		else {
-			if(id.indexOf("matchme") == 0 && gd.created + GAMERULES.MATCH_WAIT_TIME <= time && gd.users.length > 1) {
+			if(id.indexOf("matchme") === 0 && gd.created + GAMERULES.MATCH_WAIT_TIME <= time && gd.users.length > 1) {
 				startGame(id);
 			}
 		}
@@ -703,7 +703,7 @@ setInterval(tick, 0);
 var handleLostConnection = function(user) {
 	removeUserFromGames(user, true);
 	if(user in logins) {
-		if(logins[user].conn == this) { // sometimes it's not, I don't know why
+		if(logins[user].conn === this) { // sometimes it's not, I don't know why
 			console.log(logins[user].name+" left");
 			delete logins[user];
 		}
@@ -730,11 +730,11 @@ sockserve.on('connection', function(conn) {
 		// it should be an auth message
 		conn.removeListener("message", func);
 		var s = message.split(":");
-		if((s.length == 4 || s.length == 2) && s[0] == "auth") {
+		if((s.length === 4 || s.length === 2) && s[0] === "auth") {
 			// yes, it is
-			var version = parseInt(s.length==2?s[1]:s[3]);
-			if(version == PROTOCOL_VERSION || COMPATIBLE_VERSIONS.indexOf(version) > -1) {
-				if(s.length == 2) {
+			var version = parseInt(s.length===2?s[1]:s[3]);
+			if(version === PROTOCOL_VERSION || COMPATIBLE_VERSIONS.indexOf(version) > -1) {
+				if(s.length === 2) {
 					// guest login
 					var id;
 					while(true) {
@@ -752,7 +752,7 @@ sockserve.on('connection', function(conn) {
 							conn.send("error:query is scrublord");
 							conn.close();
 						}
-						else if(result.rows.length == 1) {
+						else if(result.rows.length === 1) {
 							password.verify(s[2], result.rows[0].passhash, function(x, data) {
 								if(!x && data) {
 									handleLogin(conn, s[1], version);
