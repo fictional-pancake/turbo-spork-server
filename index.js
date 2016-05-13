@@ -1,5 +1,6 @@
 var PROTOCOL_VERSION = 12;
 var COMPATIBLE_VERSIONS = [11];
+var PORT = process.env.PORT || 5000;
 
 var ws = require('ws');
 var http = require('http');
@@ -8,6 +9,7 @@ var bcrypt = require('bcrypt-nodejs');
 var fs = require('fs');
 var multiparty = require('multiparty');
 var mime = require('mime');
+var stupidclient = require('./stupidclient');
 
 if(!process.env.DATABASE_URL) {
 	console.error("DATABASE_URL missing.  Please correct this.");
@@ -38,6 +40,8 @@ var replacements = {
 	FOOTER: "</body></html>"
 };
 
+var reserved = ["guest", "bot"];
+
 var handleWeb = function(req, res, POST) {
 	if (req.url === "/signupaction") {
 		if (!POST.username || !POST.password) {
@@ -48,8 +52,8 @@ var handleWeb = function(req, res, POST) {
 			res.write("Your username and password cannot contain \":\".");
 			res.end();
 		}
-		else if(POST.username.indexOf("guest") === 0) {
-			res.write("Usernames starting with \"guest\" are reserved for guests.");
+		else if(reserved.some(function(v) {return POST.username.indexOf(v) > -1;})) {
+			res.write("That username is reserved.");
 			res.end();
 		}
 		else {
@@ -134,7 +138,7 @@ var webserve = http.createServer(function(req, res) {
 	else {
 		hwr();
 	}
-}).listen(process.env.PORT || 5000);
+}).listen(PORT);
 
 var broadcast = function(msg, gd, minVersion) {
 	var recipients = gd.users;
@@ -219,7 +223,8 @@ var GAMERULES = {
 	CHANCE_TO_KILL: 0.0001,
 	TRANSFORM_TIME: 2000,
 	MATCH_WAIT_TIME: 10000,
-	GAME_START_DELAY: 2125
+	GAME_START_DELAY: 2125,
+	TIME_UNTIL_BOT: 30000
 };
 
 var applyDefault = function(shown, def) {
@@ -278,6 +283,25 @@ var createNode = function(defaults, nodes) {
 		}
 	}
 	return tr.tr;
+};
+
+var addbot = function(room) {
+	var user = genLogin("bot");
+	var pass = Math.random()+"";
+	onetime.push({
+		username: user,
+		password: pass
+	});
+	stupidclient({
+		username: user,
+		password: pass,
+		room: room,
+		url: "ws://localhost:"+PORT,
+		ai: true,
+		log: false,
+		rejoin: false
+	});
+	games[room].hasbot = true;
 };
 
 var startGame = function(name) {
@@ -681,8 +705,13 @@ var tick = function() {
 			}
 		}
 		else {
-			if(id.indexOf("matchme") === 0 && gd.created + GAMERULES.MATCH_WAIT_TIME <= time && gd.users.length > 1) {
-				startGame(id);
+			if(id.indexOf("matchme") == 0) {
+				if(gd.created + GAMERULES.MATCH_WAIT_TIME <= time && gd.users.length > 1) {
+					startGame(id);
+				}
+				else if(gd.created + GAMERULES.TIME_UNTIL_BOT <= time && gd.users.length < 2 && !gd.hasbot) {
+					addbot(id);
+				}
 			}
 		}
 		if(gd.users.length < 1 && !("data" in gd)) {
@@ -723,6 +752,46 @@ var handleLogin = function(conn, id, version) {
 	conn.on("close", handleLostConnection.bind(conn, id));
 };
 
+var genLogin = function(start) {
+	while(true) {
+		var id = start+(Math.random()+"").substring(2);
+		if(!(id in logins)) {
+			return id;
+		}
+	}
+};
+
+var onetime = [];
+
+var validateLogin = function(user, pass, callback) {
+	for(var i = 0; i < onetime.length; i++) {
+		if(onetime[i].username == user && onetime[i].password == pass) {
+			onetime.splice(i, 1);
+			callback(null, user);
+			return;
+		}
+	}
+	db.query("SELECT * FROM users WHERE name=$1", [user], function(err, result) {
+		if(err) {
+			console.error("QUERY IS SCRUBLORD", err);
+			callback("query is scrublord");
+		}
+		else if(result.rows.length == 1) {
+			password.verify(pass, result.rows[0].passhash, function(x, data) {
+				if(!x && data) {
+					callback(null, user);
+				}
+				else {
+					callback(null, false);
+				}
+			});
+		}
+		else {
+			callback(null, false);
+		}
+	});
+};
+
 var sockserve = new ws.Server({server: webserve});
 sockserve.on('connection', function(conn) {
 	var func = function(message) {
@@ -746,30 +815,17 @@ sockserve.on('connection', function(conn) {
 					handleLogin(conn, id, version);
 				}
 				else {
-					db.query("SELECT * FROM users WHERE name=$1", [s[1]], function(err, result) {
+					validateLogin(s[1], s[2], function(err, res) {
 						if(err) {
-							console.error("QUERY IS SCRUBLORD", err);
-							conn.send("error:query is scrublord");
+							conn.send("error:Could not log you in");
 							conn.close();
 						}
-						else if(result.rows.length === 1) {
-							password.verify(s[2], result.rows[0].passhash, function(x, data) {
-								if(!x && data) {
-									handleLogin(conn, s[1], version);
-								}
-								else {
-									conn.send("error:Incorrect password");
-									conn.close();
-								}
-							});
+						else if(!res) {
+							conn.send("error:Incorrect login");
+							conn.close();
 						}
 						else {
-							try {
-								conn.send("error:Incorrect login");
-								conn.close();
-							} catch(e) {
-								console.error(e);
-							}
+							handleLogin(conn, res, version);
 						}
 					});
 				}
