@@ -636,7 +636,7 @@ var commands = {
 				if(ind>-1) {
 					var time = new Date().getTime();
 					gd.data.nodes[d.data].frozen = time;
-					broadcast("stasis:"+d.data, gd);
+					broadcast("update:"+d.data+",stasis,true", gd);
 				}
 			}
 		}
@@ -836,7 +836,7 @@ var tick = function() {
 				// check if its time to unfreeze the node
 				if (node.frozen !== 0 && time - node.frozen >= GAMERULES.FREEZE_TIME) {
 					node.frozen = 0;
-					broadcast("unstasis:"+i, gd);
+					broadcast("update:"+i+",stasis,false", gd);
 				}
 			}
 			// if the same person controls all unit groups and nodes, they win
