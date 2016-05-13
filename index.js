@@ -152,6 +152,13 @@ var broadcast = function(msg, gd, minVersion) {
 	}
 };
 
+var whisper = function(user, msg, sender) {
+	if(sender == null) {
+		sender = "SERVER";
+	}
+	logins[user].conn.send("chat:"+sender+":"+msg);
+};
+
 var getRoom = function(user) {
 	for(var id in games) {
 		var gd = games[id];
@@ -505,7 +512,21 @@ var commands = {
 		handler: function(d) {
 			var room = getRoom(d.user);
 			if(room) {
-				broadcast("chat:"+logins[d.user].name+":"+d.data, games[room], 9);
+				if(d.data[0] === "!" && logins[d.user].admin) {
+					if(d.data==="!debug") {
+						games[room].debug = !games[room].debug;
+						whisper(d.user, "Debug mode "+(games[room].debug?"on":"off"));
+					}
+					else if(d.data === "!bot") {
+						addbot(room);
+					}
+					else {
+						whisper(d.user, "Unrecognized command.");
+					}
+				}
+				else {
+					broadcast("chat:"+logins[d.user].name+":"+d.data, games[room], 9);
+				}
 			}
 			else {
 				d.conn.send("error:You're not in a room.");
@@ -625,10 +646,14 @@ var tick = function() {
 					}
 				}
 				else {
+					if(gd.debug) {
+						console.log("contested due to node owner");
+					}
 					unitsUncontested = false;
 				}
 				for(var owner in node.units) {
 					if(owner != node.owner && node.units[owner] > 0) {
+						console.log("contested due to units");
 						unitsUncontested = false;
 					}
 				}
@@ -695,7 +720,13 @@ var tick = function() {
 				}
 			}
 			// if the same person controls all unit groups and nodes, they win
+			if(gd.debug) {
+				console.log(groupsUncontested, unitsUncontested);
+			}
 			if(groupsUncontested && unitsUncontested) {
+				if(gd.debug) {
+					console.log("maybe win", gd.data.unitgroups[0], nodeWinner);
+				}
 				if(!("unitgroups" in gd.data && gd.data.unitgroups.length > 0) || gd.data.unitgroups[0].owner === nodeWinner) {
 					handleWin(id, nodeWinner);
 				}
@@ -739,17 +770,18 @@ var handleLostConnection = function(user) {
 	}
 };
 
-var handleLogin = function(conn, id, version) {
-	console.log(id+" logged in!");
-	if(id in logins) {
-		var tconn = logins[id].conn;
+var handleLogin = function(d) {
+	console.log(d.id+" logged in!");
+	if(d.id in logins) {
+		var tconn = logins[d.id].conn;
 		tconn.send("error:You logged in from another location");
 		tconn.close();
 	}
-	logins[id] = {conn: conn, name: id, version: version};
-	conn.send("join:"+logins[id].name);
-	conn.on("message", handleMessage.bind(conn, id));
-	conn.on("close", handleLostConnection.bind(conn, id));
+	d.name = d.id;
+	logins[d.id] = d;
+	d.conn.send("join:"+logins[d.id].name);
+	d.conn.on("message", handleMessage.bind(d.conn, d.id));
+	d.conn.on("close", handleLostConnection.bind(d.conn, d.id));
 };
 
 var genLogin = function(start) {
@@ -767,7 +799,7 @@ var validateLogin = function(user, pass, callback) {
 	for(var i = 0; i < onetime.length; i++) {
 		if(onetime[i].username == user && onetime[i].password == pass) {
 			onetime.splice(i, 1);
-			callback(null, user);
+			callback(null, {id: user});
 			return;
 		}
 	}
@@ -779,7 +811,7 @@ var validateLogin = function(user, pass, callback) {
 		else if(result.rows.length == 1) {
 			password.verify(pass, result.rows[0].passhash, function(x, data) {
 				if(!x && data) {
-					callback(null, user);
+					callback(null, {id: user, admin: result.rows[0].admin});
 				}
 				else {
 					callback(null, false);
@@ -812,7 +844,10 @@ sockserve.on('connection', function(conn) {
 							break;
 						}
 					}
-					handleLogin(conn, id, version);
+					handleLogin({
+						conn: conn,
+						id: id,
+						version: version});
 				}
 				else {
 					validateLogin(s[1], s[2], function(err, res) {
@@ -825,7 +860,12 @@ sockserve.on('connection', function(conn) {
 							conn.close();
 						}
 						else {
-							handleLogin(conn, res, version);
+							handleLogin({
+								conn: conn,
+								id: res.id,
+								version: version,
+								admin: res.admin
+							});
 						}
 					});
 				}
