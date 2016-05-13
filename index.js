@@ -809,7 +809,7 @@ var tick = function() {
 					}
 				}
 				// if the node is frozen, prevent changing ownership
-				if (node.frozen != 0) {
+				if (node.frozen !== 0) {
 					rightfulOwner = node.owner;
 				}
 				var keepTransform = false;
@@ -834,7 +834,7 @@ var tick = function() {
 					delete node.transformTo;
 				}
 				// check if its time to unfreeze the node
-				if (node.frozen != 0 && time - node.frozen >= GAMERULES.FREEZE_TIME) {
+				if (node.frozen !== 0 && time - node.frozen >= GAMERULES.FREEZE_TIME) {
 					node.frozen = 0;
 					broadcast("unstasis:"+i, gd);
 				}
