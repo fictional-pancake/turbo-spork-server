@@ -318,7 +318,8 @@ var GAMERULES = {
 	TRANSFORM_TIME: 2000,
 	MATCH_WAIT_TIME: 10000,
 	GAME_START_DELAY: 2125,
-	TIME_UNTIL_BOT: 30000
+	TIME_UNTIL_BOT: 30000,
+	FREEZE_TIME: 10000
 };
 
 var applyDefault = function(shown, def) {
@@ -356,6 +357,7 @@ var createNode = function(defaults, nodes) {
 		applyDefaultToMap(tc, defaults, "generationTime", 1500);
 		applyDefaultToMap(tc, defaults, "unitCap", 50);
 		applyDefaultToMap(tc, defaults, "unitSpeed", .01);
+		applyDefaultToMap(tc, defaults, "frozen", 0);
 		if(nodes && nodes.length > 0) {
 			var mindsq = Infinity;
 			for(var x = 0; x < nodes.length; x++) {
@@ -552,22 +554,27 @@ var commands = {
 							var owner = adjustForRemoved(gd, ind);
 							if(src >= 0 && src < gd.data.nodes.length && dst >= 0 && dst < gd.data.nodes.length) {
 								if(owner === gd.data.nodes[src].owner || gd.data.nodes[src].units[owner] > 0) {
-									var size = Math.floor(gd.data.nodes[src].units[owner]);
-									gd.data.nodes[src].units[ind] -= size;
-									var group = {
-										source: src,
-										dest: dst,
-										duration: Math.round(distance(gd.data.nodes[src], gd.data.nodes[dst])/gd.data.nodes[src].unitSpeed),
-										size: size,
-										owner: owner,
-										id: nextGroupID()
-									};
-									broadcast("send:"+JSON.stringify(group), gd);
-									group.start = new Date().getTime();
-									if(!("unitgroups" in gd.data)) {
-										gd.data.unitgroups = [];
+									if (gd.data.nodes[src].frozen === 0) {
+										var size = Math.floor(gd.data.nodes[src].units[owner]);
+										gd.data.nodes[src].units[ind] -= size;
+										var group = {
+											source: src,
+											dest: dst,
+											duration: Math.round(distance(gd.data.nodes[src], gd.data.nodes[dst])/gd.data.nodes[src].unitSpeed),
+											size: size,
+											owner: owner,
+											id: nextGroupID()
+										};
+										broadcast("send:"+JSON.stringify(group), gd);
+										group.start = new Date().getTime();
+										if(!("unitgroups" in gd.data)) {
+											gd.data.unitgroups = [];
+										}
+										gd.data.unitgroups.push(group);
 									}
-									gd.data.unitgroups.push(group);
+									else {
+										d.conn.send("error:That node is frozen");
+									}
 								}
 								else {
 									d.conn.send("error:You don't own that node.");
@@ -617,6 +624,20 @@ var commands = {
 			}
 			else {
 				d.conn.send("error:You're not in a room.");
+			}
+		}
+	},
+	freeze: {
+		data: true,
+		handler: function(d) {
+			for(var id in games) {
+				var gd = games[id];
+				var ind = gd.users.indexOf(d.user);
+				if(ind>-1) {
+					var time = new Date().getTime();
+					gd.data.nodes[d.data].frozen = time;
+					broadcast("stasis:"+d.data, gd);
+				}
 			}
 		}
 	}
@@ -747,7 +768,7 @@ var tick = function() {
 						unitsUncontested = false;
 					}
 				}
-				if(node.owner != -1) {
+				if(node.owner != -1 && node.frozen === 0) {
 					if(!(node.owner in node.units)) {
 						node.units[node.owner] = 0;
 					}
@@ -762,7 +783,7 @@ var tick = function() {
 					node.units[node.owner] = Math.max(node.units[node.owner], Math.min(node.units[node.owner] + (time-lastTick)/generationTime, node.unitCap));
 				}
 				for(var k in node.units) {
-					if(node.units[k] > 0) {
+					if(node.units[k] > 0 && node.frozen === 0) {
 						for(var k2 in node.units) {
 							if(k != k2 && node.units[k2] > 0) {
 								if(Math.random() / node.units[k] < GAMERULES.CHANCE_TO_KILL * (time-lastTick)) {
@@ -787,6 +808,10 @@ var tick = function() {
 						}
 					}
 				}
+				// if the node is frozen, prevent changing ownership
+				if (node.frozen != 0) {
+					rightfulOwner = node.owner;
+				}
 				var keepTransform = false;
 				if(rightfulOwner >= 0) {
 					if(node.owner != rightfulOwner) {
@@ -807,6 +832,11 @@ var tick = function() {
 				if(!keepTransform) {
 					delete node.transformBegin;
 					delete node.transformTo;
+				}
+				// check if its time to unfreeze the node
+				if (node.frozen != 0 && time - node.frozen >= GAMERULES.FREEZE_TIME) {
+					node.frozen = 0;
+					broadcast("unstasis:"+i, gd);
 				}
 			}
 			// if the same person controls all unit groups and nodes, they win
