@@ -640,7 +640,7 @@ var tick = function() {
 				if(!("units" in node)) {
 					node.units = {};
 				}
-				if(nodeWinner === node.owner || node.owner === -1 || nodeWinner === -1) {
+				if(nodeWinner == node.owner || node.owner == -1 || nodeWinner === -1) {
 					if(node.owner != -1) {
 						nodeWinner = node.owner;
 					}
@@ -648,12 +648,15 @@ var tick = function() {
 				else {
 					if(gd.debug) {
 						console.log("contested due to node owner");
+						console.log(nodeWinner, node.owner, typeof nodeWinner, typeof node.owner);
 					}
 					unitsUncontested = false;
 				}
 				for(var owner in node.units) {
 					if(owner != node.owner && node.units[owner] > 0) {
-						console.log("contested due to units");
+						if(gd.debug) {
+							console.log("contested due to units");
+						}
 						unitsUncontested = false;
 					}
 				}
@@ -724,10 +727,7 @@ var tick = function() {
 				console.log(groupsUncontested, unitsUncontested);
 			}
 			if(groupsUncontested && unitsUncontested) {
-				if(gd.debug) {
-					console.log("maybe win", gd.data.unitgroups[0], nodeWinner);
-				}
-				if(!("unitgroups" in gd.data && gd.data.unitgroups.length > 0) || gd.data.unitgroups[0].owner === nodeWinner) {
+				if(!("unitgroups" in gd.data && gd.data.unitgroups.length > 0) || gd.data.unitgroups[0].owner == nodeWinner) {
 					handleWin(id, nodeWinner);
 				}
 			}
