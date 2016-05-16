@@ -1,5 +1,5 @@
 var PROTOCOL_VERSION = 13;
-var COMPATIBLE_VERSIONS = [11, 12];
+var COMPATIBLE_VERSIONS = [11,12];
 var PORT = process.env.PORT || 5000;
 
 var ws = require('ws');
