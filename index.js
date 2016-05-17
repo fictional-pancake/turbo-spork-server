@@ -99,6 +99,14 @@ var handleWeb = function(req, res, POST) {
 	       res.writeHead(200, {"Content-type": "text/plain"});
 	       res.write(""+PROTOCOL_VERSION);
 	       res.end();
+	} else if(req.url == "/status") {
+		res.writeHead(200, {"Content-type": "text/plain"});
+		var tr = {
+			usersOnline: Object.keys(logins).length,
+			roomsActive: Object.keys(games).length
+		};
+		res.write(JSON.stringify(tr));
+		res.end();
 	} else {
 		var url = req.url;
 		if(url === "/") {
