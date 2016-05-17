@@ -40,6 +40,20 @@ var replacements = {
 	FOOTER: "</body></html>"
 };
 
+var loadReplacement = function(key) {
+	fs.readFile(__dirname+"/pages/"+key+".html", function(err, data) {
+		if(!err) {
+			replacements[key] = data;
+		}
+	});
+};
+
+for(var k in replacements) {
+	if(replacements.hasOwnProperty(k)) {
+		loadReplacement(k);
+	}
+}
+
 var reserved = ["guest", "bot"];
 
 var handleWeb = function(req, res, POST) {
