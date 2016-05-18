@@ -1,5 +1,5 @@
-var PROTOCOL_VERSION = 12;
-var COMPATIBLE_VERSIONS = [11];
+var PROTOCOL_VERSION = 13;
+var COMPATIBLE_VERSIONS = [11, 12];
 var PORT = process.env.PORT || 5000;
 
 var ws = require('ws');
@@ -10,6 +10,7 @@ var fs = require('fs');
 var multiparty = require('multiparty');
 var mime = require('mime');
 var stupidclient = require('./stupidclient');
+var hat = require('hat');
 
 if(!process.env.DATABASE_URL) {
 	console.error("DATABASE_URL missing.  Please correct this.");
@@ -107,6 +108,56 @@ var handleWeb = function(req, res, POST) {
 		};
 		res.write(JSON.stringify(tr));
 		res.end();
+	} else if(req.url == "/loginaction") {
+		if(POST.username && POST.password) {
+			validateLogin(POST.username, POST.password, function(err, d) {
+				if(err) {
+					res.writeHead(500, {"Content-type": "application/json"});
+					res.write(JSON.stringify({
+						success: false,
+						result: "query is scrublord"
+					}));
+					res.end();
+				}
+				else {
+					if(!d) {
+						res.writeHead(200, {"Content-type": "application/json"});
+						res.write(JSON.stringify({
+							success: false,
+							result: "Invalid login"
+						}));
+						res.end();
+					}
+					else {
+						newToken(POST.username, function(err, token) {
+							if(err) {
+								res.writeHead(500, {"Content-type": "application/json"});
+								res.write(JSON.stringify({
+									success: false,
+									result: "query is scrublord"
+								}));
+							}
+							else {
+								res.writeHead(200, {"Content-type": "application/json"});
+								res.write(JSON.stringify({
+									success: true,
+									result: token
+								}));
+							}
+							res.end();
+						});
+					}
+				}
+			});
+		}
+		else {
+			res.writeHead(200, {"Content-type": "application/json"});
+			res.write(JSON.stringify({
+				success: false,
+				result: "You must have a username and password"
+			}));
+			res.end();
+		}
 	} else {
 		var url = req.url;
 		if(url === "/") {
@@ -149,13 +200,27 @@ var webserve = http.createServer(function(req, res) {
 	var hwr = handleWeb.bind(this, req, res, POST);
 	console.log(req.url);
 	if (req.method === 'POST') {
-		var form = new multiparty.Form();
-		form.parse(req, function(err, fields) {
-			for(var key in fields) {
-				POST[key] = fields[key][0];
-			}
-			hwr();
-		});
+		if(req.headers['content-type'].indexOf("multipart/form-data") === 0) {
+			var form = new multiparty.Form();
+			form.parse(req, function(err, fields) {
+				for(var key in fields) {
+					POST[key] = fields[key][0];
+				}
+				hwr();
+			});
+		}
+		else {
+			// not multipart
+			req.on('data', function(data) {
+				data = data.toString();
+				data = data.split('&');
+				for (var i = 0; i < data.length; i++) {
+					var _data = data[i].split("=");
+					POST[_data[0]] = _data[1];
+				}
+			});
+			req.on('end', hwr);
+		}
 	}
 	else {
 		hwr();
@@ -818,30 +883,67 @@ var genLogin = function(start) {
 var onetime = [];
 
 var validateLogin = function(user, pass, callback) {
-	for(var i = 0; i < onetime.length; i++) {
-		if(onetime[i].username == user && onetime[i].password == pass) {
-			onetime.splice(i, 1);
-			callback(null, {id: user});
-			return;
+	if(arguments.length === 3) {
+		for(var i = 0; i < onetime.length; i++) {
+			if(onetime[i].username == user && onetime[i].password == pass) {
+				onetime.splice(i, 1);
+				callback(null, {id: user});
+				return;
+			}
 		}
+		db.query("SELECT * FROM users WHERE name=$1", [user], function(err, result) {
+			if(err) {
+				console.error("QUERY IS SCRUBLORD", err);
+				callback("query is scrublord");
+			}
+			else if(result.rows.length == 1) {
+				password.verify(pass, result.rows[0].passhash, function(x, data) {
+					if(!x && data) {
+						callback(null, {id: user, admin: result.rows[0].admin});
+					}
+					else {
+						callback(null, false);
+					}
+				});
+			}
+			else {
+				callback(null, false);
+			}
+		});
 	}
-	db.query("SELECT * FROM users WHERE name=$1", [user], function(err, result) {
+	else {
+		callback = pass;
+		var token = user;
+		db.query("SELECT * FROM users, tokens WHERE tokens.id=$1 AND tokens.user = users.name", [token], function(err, result) {
+			if(err) {
+				console.error(err);
+				callback("query is scrublord");
+			}
+			else if(result.rows.length == 1) {
+				callback(null, {
+					id: result.rows[0].user,
+					admin: result.rows[0].admin
+				});
+			}
+			else {
+				callback(null, false);
+			}
+		});
+	}
+};
+
+var newToken = function(user, callback) {
+	db.query("INSERT INTO tokens (id, \"user\", created) VALUES ($1, $2, NOW())RETURNING id", [hat(), user], function(err, result) {
 		if(err) {
-			console.error("QUERY IS SCRUBLORD", err);
+			console.error(err);
 			callback("query is scrublord");
 		}
-		else if(result.rows.length == 1) {
-			password.verify(pass, result.rows[0].passhash, function(x, data) {
-				if(!x && data) {
-					callback(null, {id: user, admin: result.rows[0].admin});
-				}
-				else {
-					callback(null, false);
-				}
-			});
+		else if(result.rows.length === 1) {
+			callback(null, result.rows[0].id);
 		}
 		else {
-			callback(null, false);
+			console.log(result.rows);
+			callback("Something weird happened");
 		}
 	});
 };
@@ -853,9 +955,9 @@ sockserve.on('connection', function(conn) {
 		// it should be an auth message
 		conn.removeListener("message", func);
 		var s = message.split(":");
-		if((s.length === 4 || s.length === 2) && s[0] === "auth") {
+		if((s.length === 4 || s.length === 2 || s.length === 3) && s[0] === "auth") {
 			// yes, it is
-			var version = parseInt(s.length===2?s[1]:s[3]);
+			var version = parseInt(s.length===2?s[1]:(s.length===3?s[2]:s[3]));
 			if(version === PROTOCOL_VERSION || COMPATIBLE_VERSIONS.indexOf(version) > -1) {
 				if(s.length === 2) {
 					// guest login
@@ -872,7 +974,11 @@ sockserve.on('connection', function(conn) {
 						version: version});
 				}
 				else {
-					validateLogin(s[1], s[2], function(err, res) {
+					var args = [s[1]];
+					if(s.length == 4) {
+						args.push(s[2]);
+					}
+					args.push(function(err, res) {
 						if(err) {
 							conn.send("error:Could not log you in");
 							conn.close();
@@ -890,6 +996,7 @@ sockserve.on('connection', function(conn) {
 							});
 						}
 					});
+					validateLogin.apply(this, args);
 				}
 			}
 			else {
