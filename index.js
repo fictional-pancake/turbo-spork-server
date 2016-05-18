@@ -150,6 +150,14 @@ var handleWeb = function(req, res, POST) {
 				}
 			});
 		}
+		else {
+			res.writeHead(200, {"Content-type": "application/json"});
+			res.write(JSON.stringify({
+				success: false,
+				result: "You must have a username and password"
+			}));
+			res.end();
+		}
 	} else {
 		var url = req.url;
 		if(url === "/") {
@@ -192,13 +200,27 @@ var webserve = http.createServer(function(req, res) {
 	var hwr = handleWeb.bind(this, req, res, POST);
 	console.log(req.url);
 	if (req.method === 'POST') {
-		var form = new multiparty.Form();
-		form.parse(req, function(err, fields) {
-			for(var key in fields) {
-				POST[key] = fields[key][0];
-			}
-			hwr();
-		});
+		if(req.headers['content-type'].indexOf("multipart/form-data") === 0) {
+			var form = new multiparty.Form();
+			form.parse(req, function(err, fields) {
+				for(var key in fields) {
+					POST[key] = fields[key][0];
+				}
+				hwr();
+			});
+		}
+		else {
+			// not multipart
+			req.on('data', function(data) {
+				data = data.toString();
+				data = data.split('&');
+				for (var i = 0; i < data.length; i++) {
+					var _data = data[i].split("=");
+					POST[_data[0]] = _data[1];
+				}
+			});
+			req.on('end', hwr);
+		}
 	}
 	else {
 		hwr();
