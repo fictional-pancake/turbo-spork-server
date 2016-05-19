@@ -400,6 +400,8 @@ var addbot = function(room) {
 
 var startGame = function(name) {
 	var nodes = [];
+	// create yo moms house with owner -3
+	nodes.push(createNode({owner: -3, x: GAMERULES.FIELD_SIZE / 2, y: GAMERULES.FIELD_SIZE / 2}, nodes));
 	for(var i = 0; i < games[name].users.length; i++) {
 		for(var x = 0; x < GAMERULES.NODES_PER_USER_AT_START; x++) {
 			nodes.push(createNode({
@@ -776,7 +778,7 @@ var tick = function() {
 						unitsUncontested = false;
 					}
 				}
-				if(node.owner != -1) {
+				if(node.owner != -1 && node.owner != -3) {
 					if(!(node.owner in node.units)) {
 						node.units[node.owner] = 0;
 					}
