@@ -55,7 +55,7 @@ for(var k in replacements) {
 	}
 }
 
-var reserved = ["guest", "bot"];
+var reserved = ["guest", "bot", "admin", "fortninja", "vpzom"];
 
 var handleWeb = function(req, res, POST) {
 	if (req.url === "/signupaction") {
