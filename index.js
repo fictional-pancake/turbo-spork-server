@@ -493,7 +493,10 @@ var commands = {
 					d.conn.send("join:"+logins[gd.users[i]].name);
 				}
 				if("data" in gd) {
-					d.conn.send("gamestart:"+JSON.stringify({nodes: gd.data.nodes}));
+					d.conn.send("gameinfo:"+JSON.stringify({nodes: gd.data.nodes}));
+					if(gd.data.gameStarted) {
+						d.conn.send("gamestart");
+					}
 					sync(gd);
 				}
 			}
