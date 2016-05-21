@@ -764,11 +764,6 @@ var tick = function() {
 					node.units = {};
 				}
 				if (node.owner == -3) {
-					var yoMomsHouse = true;
-				} else {
-					var yoMomsHouse = false;
-				}
-				if (yoMomsHouse) {
 					for (var owner in node.units) {
 						// convert all units to energy
 						gd.data.energy[owner] = Math.max(gd.data.energy[owner] + node.units[owner], GAMERULES.MAX_ENERGY);
@@ -792,7 +787,7 @@ var tick = function() {
 						unitsUncontested = false;
 					}
 				}
-				if(node.owner != -1 && !yoMomsHouse) {
+				if(node.owner != -1 && node.owner != -3) {
 					if(!(node.owner in node.units)) {
 						node.units[node.owner] = 0;
 					}
@@ -819,7 +814,7 @@ var tick = function() {
 						}
 					}
 				}
-				if (!yoMomsHouse) {
+				if (node.owner != -3) {
 					// ensure owner is correct
 					var rightfulOwner = -1;
 					for(var u in node.units) {
