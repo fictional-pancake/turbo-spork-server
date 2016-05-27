@@ -603,9 +603,24 @@ var commands = {
 			var room = getRoom(d.user);
 			if(room) {
 				if(d.data[0] === "!" && logins[d.user].admin) {
-					if(d.data==="!debug") {
-						games[room].debug = !games[room].debug;
-						whisper(d.user, "Debug mode "+(games[room].debug?"on":"off"));
+					if(d.data.indexOf("!debug:") !== -1) {
+						// find what category to toggle
+						var category = d.data.substring(7);
+						if (category.length === 0) {
+							whisper(d.user, "Please supply a debug category to toggle.");
+							return;
+						}
+						// create array of categories if needed
+						if (!games[room].debug) {
+							games[room].debug = [];
+						}
+						// toggle category
+						if (games[room].debug.indexOf(category) !== -1) {
+							games[room].debug.splice(games[room].debug.indexOf(category), 1);
+						} else {
+							games[room].debug.push(category);
+						}
+						whisper(d.user, "Debug category '" + category + "' set to " + ((games[room].debug.indexOf(category) !== -1) ? "on":"off"));
 					}
 					else if(d.data === "!bot") {
 						addbot(room);
@@ -622,6 +637,21 @@ var commands = {
 				d.conn.send("error:You're not in a room.");
 			}
 		}
+	}
+};
+
+// log a debug message only if its category is enabled
+// arguments: game data, debug category, then the rest is arguments to console.log
+var debugMsg = function() {
+	var category = arguments[1];
+	if (!arguments[0].debug) {
+		arguments[0].debug = [];
+	} else if (arguments[0].debug.indexOf(category) !== -1) {
+		var message = "";
+		for (var i = 1; i < arguments.length; i++) {
+			message += arguments[i] + " ";
+		}
+		console.log(category + ": " + message);
 	}
 };
 
@@ -736,17 +766,13 @@ var tick = function() {
 					}
 				}
 				else {
-					if(gd.debug) {
-						console.log("contested due to node owner");
-						console.log(nodeWinner, node.owner, typeof nodeWinner, typeof node.owner);
-					}
+					debugMsg(gd, "winning", "contested due to node owner");
+					debugMsg(gd, "winning", nodeWinner, node.owner, typeof nodeWinner, typeof node.owner);
 					unitsUncontested = false;
 				}
 				for(var owner in node.units) {
 					if(owner != node.owner && node.units[owner] > 0) {
-						if(gd.debug) {
-							console.log("contested due to units");
-						}
+						debugMsg(gd, "winning", "contested due to units");
 						unitsUncontested = false;
 					}
 				}
@@ -813,9 +839,7 @@ var tick = function() {
 				}
 			}
 			// if the same person controls all unit groups and nodes, they win
-			if(gd.debug) {
-				console.log(groupsUncontested, unitsUncontested);
-			}
+			debugMsg(gd, "winning", groupsUncontested, unitsUncontested);
 			if(groupsUncontested && unitsUncontested) {
 				if(!("unitgroups" in gd.data && gd.data.unitgroups.length > 0) || gd.data.unitgroups[0].owner == nodeWinner) {
 					handleWin(id, nodeWinner);
