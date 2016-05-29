@@ -781,11 +781,11 @@ var tick = function() {
 						debugMsg(gd, "winning", nodeWinner, node.owner, typeof nodeWinner, typeof node.owner);
 						unitsUncontested = false;
 					}
-				}
-				for(var owner in node.units) {
-					if(owner != node.owner && node.units[owner] > 0) {
-						debugMsg(gd, "winning", "contested due to units");
-						unitsUncontested = false;
+					for(var unitOwner in node.units) {
+						if(owner != node.owner && node.units[owner] > 0) {
+							debugMsg(gd, "winning", "contested due to units");
+							unitsUncontested = false;
+						}
 					}
 				}
 				if(node.owner != -1 && node.owner != -3) {
