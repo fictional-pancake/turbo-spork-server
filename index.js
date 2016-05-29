@@ -782,7 +782,7 @@ var tick = function() {
 						unitsUncontested = false;
 					}
 					for(var unitOwner in node.units) {
-						if(owner != node.owner && node.units[owner] > 0) {
+						if(unitOwner != node.owner && node.units[unitOwner] > 0) {
 							debugMsg(gd, "winning", "contested due to units");
 							unitsUncontested = false;
 						}
