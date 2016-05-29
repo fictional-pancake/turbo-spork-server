@@ -768,6 +768,7 @@ var tick = function() {
 						// convert all units to energy
 						gd.data.energy[owner] = Math.max(gd.data.energy[owner] + node.units[owner], GAMERULES.MAX_ENERGY);
 						node.units[owner] = 0;
+						logins[gd.users[adjustForRemoved(i)].conn.send("energy:" + gd.data.energy[owner]);
 					}
 				} else {
 					if(nodeWinner == node.owner || node.owner == -1 || nodeWinner === -1) {
