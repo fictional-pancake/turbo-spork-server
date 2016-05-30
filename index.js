@@ -766,9 +766,9 @@ var tick = function() {
 				if (node.owner == -3) {
 					for (var owner in node.units) {
 						// convert all units to energy
-						gd.data.energy[owner] = Math.max(gd.data.energy[owner] + node.units[owner], GAMERULES.MAX_ENERGY);
+						gd.data.energy[owner] = Math.min(gd.data.energy[owner] + node.units[owner], GAMERULES.MAX_ENERGY);
 						node.units[owner] = 0;
-						logins[gd.users[adjustForRemoved(gd, i)]].conn.send("energy:" + gd.data.energy[owner]);
+						logins[gd.users[adjustForRemoved(gd, owner)]].conn.send("energy:" + gd.data.energy[owner]);
 					}
 				} else {
 					if(nodeWinner == node.owner || node.owner == -1 || nodeWinner === -1) {
