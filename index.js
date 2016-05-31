@@ -319,7 +319,8 @@ var GAMERULES = {
 	MATCH_WAIT_TIME: 10000,
 	GAME_START_DELAY: 2125,
 	TIME_UNTIL_BOT: 30000,
-	MAX_ENERGY: 100
+	MAX_ENERGY: 100,
+	STARTING_ENERGY: 20
 };
 
 var applyDefault = function(shown, def) {
@@ -404,6 +405,7 @@ var startGame = function(name) {
 	// create yo moms house with owner -3
 	nodes.push(createNode({owner: -3, x: GAMERULES.FIELD_SIZE / 2, y: GAMERULES.FIELD_SIZE / 2}, nodes));
 	for(var i = 0; i < games[name].users.length; i++) {
+		games[name].energy.push(GAMERULES.STARTING_ENERGY);
 		for(var x = 0; x < GAMERULES.NODES_PER_USER_AT_START; x++) {
 			nodes.push(createNode({
 				owner: i,
