@@ -404,6 +404,7 @@ var startGame = function(name) {
 	var nodes = [];
 	// create yo moms house with owner -3
 	nodes.push(createNode({owner: -3, x: GAMERULES.FIELD_SIZE / 2, y: GAMERULES.FIELD_SIZE / 2}, nodes));
+	games[name].energy = [];
 	for(var i = 0; i < games[name].users.length; i++) {
 		games[name].energy.push(GAMERULES.STARTING_ENERGY);
 		for(var x = 0; x < GAMERULES.NODES_PER_USER_AT_START; x++) {
