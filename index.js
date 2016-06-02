@@ -402,7 +402,7 @@ var addbot = function(room) {
 
 var startGame = function(name) {
 	var nodes = [];
-	var energy = []
+	var energy = [];
 	// create yo moms house with owner -3
 	nodes.push(createNode({owner: -3, x: GAMERULES.FIELD_SIZE / 2, y: GAMERULES.FIELD_SIZE / 2}, nodes));
 	for(var i = 0; i < games[name].users.length; i++) {
@@ -411,7 +411,7 @@ var startGame = function(name) {
 				owner: i,
 			}, nodes));
 		}
-		games[name].data.energy.push(GAMERULES.STARTING_ENERGY);
+		energy.push(GAMERULES.STARTING_ENERGY);
 	}
 	for(var x = 0; x < GAMERULES.UNCLAIMED_NODES_AT_START; x++) {
 		nodes.push(createNode({}, nodes));
