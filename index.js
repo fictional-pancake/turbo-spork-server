@@ -1,5 +1,5 @@
-var PROTOCOL_VERSION = 13;
-var COMPATIBLE_VERSIONS = [11, 12];
+var PROTOCOL_VERSION = 14;
+var COMPATIBLE_VERSIONS = [];
 var PORT = process.env.PORT || 5000;
 
 var ws = require('ws');
@@ -318,7 +318,9 @@ var GAMERULES = {
 	TRANSFORM_TIME: 2000,
 	MATCH_WAIT_TIME: 10000,
 	GAME_START_DELAY: 2125,
-	TIME_UNTIL_BOT: 30000
+	TIME_UNTIL_BOT: 30000,
+	MAX_ENERGY: 100,
+	STARTING_ENERGY: 20
 };
 
 var applyDefault = function(shown, def) {
@@ -400,17 +402,21 @@ var addbot = function(room) {
 
 var startGame = function(name) {
 	var nodes = [];
+	var energy = [];
+	// create yo moms house with owner -3
+	nodes.push(createNode({owner: -3, x: GAMERULES.FIELD_SIZE / 2, y: GAMERULES.FIELD_SIZE / 2}, nodes));
 	for(var i = 0; i < games[name].users.length; i++) {
 		for(var x = 0; x < GAMERULES.NODES_PER_USER_AT_START; x++) {
 			nodes.push(createNode({
 				owner: i,
 			}, nodes));
 		}
+		energy.push(GAMERULES.STARTING_ENERGY);
 	}
 	for(var x = 0; x < GAMERULES.UNCLAIMED_NODES_AT_START; x++) {
 		nodes.push(createNode({}, nodes));
 	}
-	games[name].data = {nodes: nodes, removed: []};
+	games[name].data = {nodes: nodes, removed: [], energy: energy};
 	broadcast("gameinfo:"+JSON.stringify(games[name].data), games[name]);
 	setTimeout(function() {
 		// make sure that game still exists before starting it
@@ -760,23 +766,32 @@ var tick = function() {
 				if(!("units" in node)) {
 					node.units = {};
 				}
-				if(nodeWinner == node.owner || node.owner == -1 || nodeWinner === -1) {
-					if(node.owner != -1) {
-						nodeWinner = node.owner;
+				if (node.owner == -3) {
+					for (var owner in node.units) {
+						// convert all units to energy
+						gd.data.energy[owner] = Math.min(gd.data.energy[owner] + node.units[owner], GAMERULES.MAX_ENERGY);
+						node.units[owner] = 0;
+						logins[gd.users[adjustForRemoved(gd, owner)]].conn.send("energy:" + gd.data.energy[owner]);
 					}
-				}
-				else {
-					debugMsg(gd, "winning", "contested due to node owner");
-					debugMsg(gd, "winning", nodeWinner, node.owner, typeof nodeWinner, typeof node.owner);
-					unitsUncontested = false;
-				}
-				for(var owner in node.units) {
-					if(owner != node.owner && node.units[owner] > 0) {
-						debugMsg(gd, "winning", "contested due to units");
+				} else {
+					if(nodeWinner == node.owner || node.owner == -1 || nodeWinner === -1) {
+						if(node.owner != -1) {
+							nodeWinner = node.owner;
+						}
+					}
+					else {
+						debugMsg(gd, "winning", "contested due to node owner");
+						debugMsg(gd, "winning", nodeWinner, node.owner, typeof nodeWinner, typeof node.owner);
 						unitsUncontested = false;
 					}
+					for(var unitOwner in node.units) {
+						if(unitOwner != node.owner && node.units[unitOwner] > 0) {
+							debugMsg(gd, "winning", "contested due to units");
+							unitsUncontested = false;
+						}
+					}
 				}
-				if(node.owner != -1) {
+				if(node.owner != -1 && node.owner != -3) {
 					if(!(node.owner in node.units)) {
 						node.units[node.owner] = 0;
 					}
@@ -803,16 +818,18 @@ var tick = function() {
 						}
 					}
 				}
-				// ensure owner is correct
-				var rightfulOwner = -1;
-				for(var u in node.units) {
-					if(node.units[u] > 0) {
-						if(rightfulOwner === -1) {
-							rightfulOwner = u;
-						}
-						else {
-							// multiple owner's units, node owner unknown
-							rightfulOwner = -2;
+				if (node.owner != -3) {
+					// ensure owner is correct
+					var rightfulOwner = -1;
+					for(var u in node.units) {
+						if(node.units[u] > 0) {
+							if(rightfulOwner === -1) {
+								rightfulOwner = u;
+							}
+							else {
+								// multiple owner's units, node owner unknown
+								rightfulOwner = -2;
+							}
 						}
 					}
 				}
