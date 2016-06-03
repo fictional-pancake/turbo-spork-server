@@ -412,6 +412,7 @@ var startGame = function(name) {
 	}
 	games[name].data = {nodes: nodes, removed: []};
 	broadcast("gameinfo:"+JSON.stringify(games[name].data), games[name]);
+	games[name].data.paused = 0;
 	setTimeout(function() {
 		// make sure that game still exists before starting it
 		if (name in games) {
@@ -636,6 +637,41 @@ var commands = {
 			else {
 				d.conn.send("error:You're not in a room.");
 			}
+		}
+	},
+	pause: {
+		data: true,
+		handler: function(d) {
+			for(var id in games) {
+				 var gd = games[id];
+				 var ind = gd.users.indexOf(d.user);
+					if(ind>-1) {
+						for(var id in games) {
+							var gd = games[id];
+							var ind = gd.users.indexOf(d.user);
+							if(ind>-1) {
+								if("data" in gd && gd.data.gameStarted) {
+									if (gd.data.paused === 0) {
+										// pause game
+											if (gd.data.pauses[adjustForRemoved(ind)] > 0) {
+												gd.data.pauses[adjustForRemoved(gd, ind)]--;
+												gd.data.paused = new Date().getTime();
+												broadcast("pause:" + d.user + "," + gd.data.pauses[adjustForRemoved(ind)], gd);
+											}
+									} else {
+										// unpause game
+										gd.data.paused = 0;
+										broadcast("unpause:" + d.user + ",", gd);
+									}
+								} else {
+									d.conn.send("error:Game not started");
+								}
+							}
+						}
+						return;
+					}
+			}
+			d.conn.send("error:You're not in a room.");
 		}
 	}
 };
