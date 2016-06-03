@@ -63,6 +63,9 @@ var runBot = function(opts) {
 		}
 		else if(d.data.indexOf("win") == 0) {
 			ai = null;
+			if(!opts.rejoin) {
+				endGame();
+			}
 			maybeStart();
 		}
 		else if(d.data.indexOf("update") == 0) {
@@ -102,7 +105,7 @@ var runBot = function(opts) {
 		endGame();
 	};
 	var mint = setInterval(function(){
-		if(ai && ai.active) {
+		if(ai && ai.active && ai.mynodes.length > 0) {
 			if(opts.log) {console.log(ai.mynodes);}
 			s.send("attack:"+ai.mynodes[Math.floor(Math.random()*ai.mynodes.length)]+","+Math.floor(Math.random()*ai.nodecount));
 		}
