@@ -318,7 +318,8 @@ var GAMERULES = {
 	TRANSFORM_TIME: 2000,
 	MATCH_WAIT_TIME: 10000,
 	GAME_START_DELAY: 2125,
-	TIME_UNTIL_BOT: 30000
+	TIME_UNTIL_BOT: 30000,
+	MAX_PAUSE_TIME: 120000
 };
 
 var applyDefault = function(shown, def) {
@@ -553,32 +554,37 @@ var commands = {
 					var ind = gd.users.indexOf(d.user);
 					if(ind>-1) {
 						if("data" in gd && gd.data.gameStarted) {
-							var owner = adjustForRemoved(gd, ind);
-							if(src >= 0 && src < gd.data.nodes.length && dst >= 0 && dst < gd.data.nodes.length) {
-								if(owner === gd.data.nodes[src].owner || gd.data.nodes[src].units[owner] > 0) {
-									var size = Math.floor(gd.data.nodes[src].units[owner]);
-									gd.data.nodes[src].units[ind] -= size;
-									var group = {
-										source: src,
-										dest: dst,
-										duration: Math.round(distance(gd.data.nodes[src], gd.data.nodes[dst])/gd.data.nodes[src].unitSpeed),
-										size: size,
-										owner: owner,
-										id: nextGroupID()
-									};
-									broadcast("send:"+JSON.stringify(group), gd);
-									group.start = new Date().getTime();
-									if(!("unitgroups" in gd.data)) {
-										gd.data.unitgroups = [];
+							if (gd.data.paused === 0) {
+								var owner = adjustForRemoved(gd, ind);
+								if(src >= 0 && src < gd.data.nodes.length && dst >= 0 && dst < gd.data.nodes.length) {
+									if(owner === gd.data.nodes[src].owner || gd.data.nodes[src].units[owner] > 0) {
+										var size = Math.floor(gd.data.nodes[src].units[owner]);
+										gd.data.nodes[src].units[ind] -= size;
+										var group = {
+											source: src,
+											dest: dst,
+											duration: Math.round(distance(gd.data.nodes[src], gd.data.nodes[dst])/gd.data.nodes[src].unitSpeed),
+											size: size,
+											owner: owner,
+											id: nextGroupID()
+										};
+										broadcast("send:"+JSON.stringify(group), gd);
+										group.start = new Date().getTime();
+										if(!("unitgroups" in gd.data)) {
+											gd.data.unitgroups = [];
+										}
+										gd.data.unitgroups.push(group);
 									}
-									gd.data.unitgroups.push(group);
+									else {
+										d.conn.send("error:You don't own that node.");
+									}
 								}
 								else {
-									d.conn.send("error:You don't own that node.");
+									d.conn.send("error:That node doesn't exist.");
 								}
 							}
 							else {
-								d.conn.send("error:That node doesn't exist.");
+								d.conn.send("error:Game is paused.");
 							}
 						}
 						else {
@@ -766,6 +772,16 @@ var tick = function() {
 	for(var id in games) {
 		var gd = games[id];
 		if("data" in gd) {
+			if (gd.data.paused !== 0) {
+				// game is paused, don't do a normal tick
+				if (time - gd.data.paused > GAMERULES.MAX_PAUSE_TIME) {
+					// game has been paused too long, unpause it
+					gd.data.paused = 0;
+					broadcast("unpause", gd);
+				} else {
+					continue;
+				}
+			}
 			var groupsUncontested = true;
 			var unitsUncontested = true;
 			if("unitgroups" in gd.data && gd.data.unitgroups.length > 0) {
