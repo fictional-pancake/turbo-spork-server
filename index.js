@@ -423,6 +423,14 @@ var startGame = function(name) {
 	}, GAMERULES.GAME_START_DELAY);
 };
 
+var unpaused = function(gd) {
+	var groups = gd.data.unitgroups;
+	var time = new Date().getTime();
+	for (var i = 0; groups.length; i++) {
+		groups[i].duration += (time - gd.data.paused);
+	}
+};
+
 var lastGroupID = 0;
 var nextGroupID = function() {
 	return ++lastGroupID;
@@ -649,34 +657,28 @@ var commands = {
 		data: true,
 		handler: function(d) {
 			for(var id in games) {
-				 var gd = games[id];
-				 var ind = gd.users.indexOf(d.user);
-					if(ind>-1) {
-						for(var id in games) {
-							var gd = games[id];
-							var ind = gd.users.indexOf(d.user);
-							if(ind>-1) {
-								if("data" in gd && gd.data.gameStarted) {
-									if (gd.data.paused === 0) {
-										// pause game
-											if (gd.data.pauses[adjustForRemoved(ind)] > 0) {
-												gd.data.pauses[adjustForRemoved(gd, ind)]--;
-												gd.data.paused = new Date().getTime();
-												broadcast("pause:" + d.user + "," + gd.data.pauses[adjustForRemoved(ind)], gd);
-											}
-									} else {
-										// unpause game
-										gd.data.paused = 0;
-										broadcast("unpause:" + d.user + ",", gd);
-										unpaused(gd);
-									}
-								} else {
-									d.conn.send("error:Game not started");
-								}
+				var gd = games[id];
+				var ind = gd.users.indexOf(d.user);
+				if(ind>-1) {
+					if("data" in gd && gd.data.gameStarted) {
+						if (gd.data.paused === 0) {
+							// pause game
+							if (gd.data.pauses[adjustForRemoved(ind)] > 0) {
+								gd.data.pauses[adjustForRemoved(gd, ind)]--;
+								gd.data.paused = new Date().getTime();
+								broadcast("pause:" + d.user + "," + gd.data.pauses[adjustForRemoved(ind)], gd);
 							}
+						} else {
+							// unpause game
+							gd.data.paused = 0;
+							broadcast("unpause:" + d.user + ",", gd);
+							unpaused(gd);
 						}
-						return;
+					} else {
+						d.conn.send("error:Game not started");
 					}
+					return;
+				}
 			}
 			d.conn.send("error:You're not in a room.");
 		}
@@ -765,14 +767,6 @@ var sync = function(gd) {
 	}
 	broadcast("sync:"+JSON.stringify(syncData), gd);
 };
-
-var unpaused = function(gd) {
-	var groups = gd.data.unitgroups;
-	var time = new Date().getTime();
-	for (var i = 0; groups.length; i++) {
-		groups[i].duration += (time - gd.data.paused);
-	}
-}
 
 var lastTick = -1;
 
