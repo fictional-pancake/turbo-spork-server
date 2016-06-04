@@ -426,6 +426,7 @@ var startGame = function(name) {
 var unpaused = function(gd) {
 	var groups = gd.data.unitgroups;
 	var time = new Date().getTime();
+	debugMsg(gd, "pausing", "Adding " + (time - gd.data.paused) + " ms to all UnitGroup durations to adjust for pausing");
 	for (var i = 0; groups.length; i++) {
 		groups[i].duration += (time - gd.data.paused);
 	}
@@ -664,12 +665,14 @@ var commands = {
 						if (gd.data.paused === 0) {
 							// pause game
 							if (gd.data.pauses[adjustForRemoved(ind)] > 0) {
+								debugMsg(gd, "pausing", "Pausing the game at the request of " + d.user);
 								gd.data.pauses[adjustForRemoved(gd, ind)]--;
 								gd.data.paused = new Date().getTime();
 								broadcast("pause:" + d.user + "," + gd.data.pauses[adjustForRemoved(ind)], gd);
 							}
 						} else {
 							// unpause game
+							debugMsg(gd, "pausing", "Unpausing the game at the request of " + d.user);
 							gd.data.paused = 0;
 							broadcast("unpause:" + d.user + ",", gd);
 							unpaused(gd);
@@ -784,6 +787,7 @@ var tick = function() {
 					broadcast("unpause", gd);
 					unpaused(gd);
 				} else {
+					debugMsg(gd, "pausing", "Skipping a tick because the game is paused");
 					continue;
 				}
 			}
