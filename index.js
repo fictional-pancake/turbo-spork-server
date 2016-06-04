@@ -668,6 +668,7 @@ var commands = {
 										// unpause game
 										gd.data.paused = 0;
 										broadcast("unpause:" + d.user + ",", gd);
+										unpaused(gd);
 									}
 								} else {
 									d.conn.send("error:Game not started");
@@ -765,6 +766,14 @@ var sync = function(gd) {
 	broadcast("sync:"+JSON.stringify(syncData), gd);
 };
 
+var unpaused = function(gd) {
+	var groups = gd.data.unitgroups;
+	var time = new Date().getTime();
+	for (var i = 0; groups.length; i++) {
+		groups[i].duration += (time - gd.data.paused);
+	}
+}
+
 var lastTick = -1;
 
 var tick = function() {
@@ -776,8 +785,10 @@ var tick = function() {
 				// game is paused, don't do a normal tick
 				if (time - gd.data.paused > GAMERULES.MAX_PAUSE_TIME) {
 					// game has been paused too long, unpause it
+					debugMsg(gd, "pausing", "Game has been paused for too long, unpausing");
 					gd.data.paused = 0;
 					broadcast("unpause", gd);
+					unpaused(gd);
 				} else {
 					continue;
 				}
